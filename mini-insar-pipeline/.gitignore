@@ -1,0 +1,32 @@
+# Git ignore patterns for mini-insar-pipeline
+
+# Environment variables
+.env
+
+# Downloaded and processed data
+data/SAFE/
+data/out/
+data/stac_results.json
+
+# Downloaded installers
+*.sh
+
+# Python bytecode and virtual environments
+__pycache__/
+*.pyc
+venv/
+*.venv
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE-specific files
+.vscode/
+.idea/
+
+# SNAP specific files (if any are generated outside data/out)
+# Add any other SNAP-generated temporary files or logs here if they appear
+# For example:
+# *.snap
+# *.log

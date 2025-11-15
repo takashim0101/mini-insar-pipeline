@@ -1,0 +1,12 @@
+services:
+  insar:
+    build: .
+    container_name: mini_insar
+    volumes:
+      - ./data:/opt/data
+      - ./graphs:/opt/graphs
+      - ./scripts:/opt/scripts
+    environment:
+      - EARTHDATA_USERNAME=${EARTHDATA_USERNAME}
+      - EARTHDATA_PASSWORD=${EARTHDATA_PASSWORD}
+    tty: true

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graph id="INSAR">
+  <version>1.0</version>
+
+  <node id="Read-Master" name="Read-Master">
+    <operator>Read</operator>
+    <parameters>
+      <file>${master}</file>
+    </parameters>
+  </node>
+
+  <node id="Read-Slave" name="Read-Slave">
+    <operator>Read</operator>
+    <parameters>
+      <file>${slave}</file>
+    </parameters>
+  </node>
+
+  <node id="TOPS-Split-Master" name="TOPSAR-Split-Master">
+    <operator>TOPSAR-Split</operator>
+    <sources>
+      <sourceProduct refid="Read-Master"/>
+    </sources>
+    <parameters>
+      <subswath>IW2</subswath>
+      <selectedPolarisations>VV</selectedPolarisations>
+    </parameters>
+  </node>
+
+  <node id="TOPS-Split-Slave" name="TOPSAR-Split-Slave">
+    <operator>TOPSAR-Split</operator>
+    <sources>
+      <sourceProduct refid="Read-Slave"/>
+    </sources>
+    <parameters>
+      <subswath>IW2</subswath>
+      <selectedPolarisations>VV</selectedPolarisations>
+    </parameters>
+  </node>
+
+  <node id="CoReg" name="Back-Geocoding">
+    <operator>Back-Geocoding</operator>
+    <sources>
+      <masterProduct>TOPS-Split-Master</masterProduct>
+      <slaveProduct>TOPS-Split-Slave</slaveProduct>
+    </sources>
+    <parameters>
+      <demName>SRTM 1Sec HGT</demName>
+      <demResamplingMethod>BICUBIC_INTERPOLATION</demResamplingMethod>
+      <resamplingType>BISINC_5_POINT_INTERPOLATION</resamplingType>
+    </parameters>
+  </node>
+
+  <node id="Interf" name="Interferogram">
+    <operator>Interferogram</operator>
+    <sources>
+      <sourceProduct refid="CoReg"/>
+    </sources>
+    <parameters/>
+  </node>
+
+  <node id="Deburst" name="TOPSAR-Deburst">
+    <operator>TOPSAR-Deburst</operator>
+    <sources>
+      <sourceProduct refid="Interf"/>
+    </sources>
+    <parameters>
+      <selectedPolarisations>VV</selectedPolarisations>
+    </parameters>
+  </node>
+
+  <node id="Goldstein" name="GoldsteinPhaseFiltering">
+    <operator>GoldsteinPhaseFiltering</operator>
+    <sources>
+      <sourceProduct refid="Deburst"/> <!-- Changed source from Interf to Deburst -->
+    </sources>
+    <parameters/>
+  </node>
+
+  <node id="Terrain-Correction" name="Terrain-Correction">
+    <operator>Terrain-Correction</operator>
+    <sources>
+      <sourceProduct refid="Goldstein"/>
+    </sources>
+    <parameters>
+      <demName>SRTM 1Sec HGT</demName>
+      <demResamplingMethod>BICUBIC_INTERPOLATION</demResamplingMethod>
+      <imgResamplingMethod>BICUBIC_INTERPOLATION</imgResamplingMethod>
+      <pixelSpacingInMeter>10.0</pixelSpacingInMeter>
+      <mapProjection>GEOGCS["WGS84(DD)", DATUM["WGS84", SPHEROID["WGS84", 6378137.0, 298.257223563]], PRIMEM["Greenwich", 0.0], UNIT["degree", 0.017453292519943295], AXIS["Geodetic longitude", EAST], AXIS["Geodetic latitude", NORTH]]</mapProjection>
+      <saveDEM>false</saveDEM>
+      <saveLatLon>false</saveLatLon>
+      <saveLocalIncidenceAngle>false</saveLocalIncidenceAngle>
+      <saveProjectedLocalIncidenceAngle>false</saveProjectedLocalIncidenceAngle>
+      <saveSelectedSourceBand>true</saveSelectedSourceBand>
+    </parameters>
+  </node>
+
+  <node id="WriteGTiff" name="Write">
+    <operator>Write</operator>
+    <sources>
+      <sourceProduct refid="Terrain-Correction"/> <!-- Changed source from Goldstein to Terrain-Correction -->
+    </sources>
+    <parameters>
+      <file>${output.path}/insar_filtered.tif</file>
+      <formatName>GeoTIFF-BigTIFF</formatName>
+    </parameters>
+  </node>
+
+</graph>
