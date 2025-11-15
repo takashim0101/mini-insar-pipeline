@@ -1,134 +1,158 @@
-# Sentinel InSAR Project — A Guide for Non-Technical Users
+# Mini InSAR Pipeline v2
 
-## 1. Project Overview
+A reproducible, Dockerized Mini InSAR Pipeline that:
+- downloads two Sentinel-1 scenes from the Alaska Satellite Facility (ASF) for an AOI & time window,
+- runs an ESA SNAP processing graph (coregistration → interferogram → filtering),
+- converts results to GeoTIFFs,
+- produces a simple visualization (displacement map) and a short report.
 
-The goal of this project is to use a Python-based framework to run and manage various tools and cloud services. The directory name, `sentinel_insar`, suggests its origins in geospatial analysis using Sentinel satellite data for InSAR (Interferometric Synthetic Aperture Radar).
+This is a minimum viable InSAR pipeline, intended to demonstrate phase-based displacement output.
 
-Currently, the focus is on the **Multi-server MCP framework**, which involves managing containerized applications and integrating with cloud services like AWS and Google AI.
+## How to Run
 
-## 2. Preparing the Sandbox Environment
+1.  **Set Earthdata Login Credentials**:
+    Data download is handled by `asf-search`, which requires a NASA Earthdata Login account.
 
-This project operates within a sandbox environment (`MCP_DOCKER`) powered by the Gemini CLI.
+    *   **Create an Account**: If you don't have one, [register for a free NASA Earthdata account](https://urs.earthdata.nasa.gov/users/new).
+    *   **Set Environment Variables**: Set your credentials as environment variables in your **host shell** *before* running `docker-compose`.
 
-**Step 1: Launch the Sandbox**
+    *   **For Bash/Zsh (Linux/macOS):**
+        ```bash
+        export EARTHDATA_USERNAME=your_earthdata_username
+        export EARTHDATA_PASSWORD=your_earthdata_password
+        ```
+    *   **For PowerShell (Windows):**
+        ```powershell
+        $env:EARTHDATA_USERNAME="your_earthdata_username"
+        $env:EARTHDATA_PASSWORD="your_earthdata_password"
+        ```
+    *   *Replace `your_earthdata_username` and `your_earthdata_password` with your actual credentials.*
 
-Launch the sandbox container using the following command.
+2.  **Windows/WSL2 Users: Configure Docker Memory (Crucial for InSAR Processing)**
 
-```bash
-docker run -it --name MCP_DOCKER \
-    -v /c/Portfolio/sentinel_insar:/workspace \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.13.0
-```
+    InSAR processing is memory-intensive. If you are running Docker Desktop on Windows with the WSL2 backend, it is crucial to allocate sufficient memory to WSL2 to prevent out-of-memory errors during SNAP processing.
 
-*Note: Automatic updates are disabled in sandbox mode, but the core CLI functionalities are available.*
+    1.  **Create or Edit `.wslconfig`**:
+        Create or edit a file named `.wslconfig` in your Windows user profile directory (`%USERPROFILE%`, typically `C:\Users\<YourUsername>\`).
 
-**Step 2: Google Authentication**
+    2.  **Add Configuration**:
+        Add the following content to the `.wslconfig` file. Adjust `memory` and `processors` based on your system's resources, but ensure `memory` is at least 16GB for this pipeline.
 
-After the container starts, the Gemini CLI will prompt you to authenticate.
+        ```ini
+        [wsl2]
+        memory=16GB       # Allocate 16GB of RAM to WSL2
+        processors=6      # Allocate 6 CPU cores to WSL2
+        swap=16GB         # Allocate 16GB of swap space
+        localhostForwarding=true
+        ```
 
-1.  Select **"1. Login with Google"**.
-2.  Follow the on-screen instructions to authenticate with your Google account in your browser.
+    3.  **Restart WSL**:
+        After saving `.wslconfig`, you must shut down and restart WSL for the changes to take effect. Open PowerShell or Command Prompt (not within WSL) and run:
 
-Once complete, you can begin using the Gemini CLI.
+        ```powershell
+        wsl --shutdown
+        ```
+        Then, restart your Docker Desktop application. You can verify the allocated memory by running `free -h` inside your WSL terminal or `docker info | grep "Total Memory"` after Docker Desktop has restarted.
 
-## 3. Current Setup Status
+3.  **Build and Run the Container**:
+    **Important:** All `docker-compose` commands must be run from within the `mini-insar-pipeline` directory.
 
-*   **Sandbox (`MCP_DOCKER`)**: Active and running.
-*   **Gemini CLI**: Operating correctly inside Docker.
-*   **Google Authentication**: Complete (enabling Q&A, code execution, etc.).
-*   **.env File**: Loaded.
-    *   `GOOGLE_CLOUD_PROJECT` is currently a placeholder. (In this state, no charges will be incurred from Google Cloud.)
-    *   `GOOGLE_CLOUD_LOCATION` is set.
-*   **/workspace**: Recognized as the project directory.
-*   **GEMINI.md**: Applied to the sandbox configuration.
+    *   **Download ESA SNAP Installer**: Before building, you need to manually download the ESA SNAP 13.0.0 "All Toolboxes" **Linux 64-bit** installer (`.sh` file) from [https://step.esa.int/main/download/snap-download/](https://step.esa.int/main/download/snap-download/). Place this `.sh` file directly into the `mini-insar-pipeline` directory (the same directory as the `Dockerfile`). **Do NOT download the Windows installer (.exe) as it will not work within the Linux-based Docker container.**
 
-## 4. About MCP Docker Costs
-
-*   Logging into the sandbox and basic Gemini CLI operations are **free**.
-*   Costs **may be incurred** depending on the services you use inside the container.
-    *   **Examples**: Paid usage of the Gemini API, Vertex AI, or services beyond the AWS Free Tier.
-
-It is recommended to start with free operations to familiarize yourself with the environment.
-
-## 5. Environment Check (Non-Tech Friendly)
-
-You can use these steps to verify that the environment is working correctly.
-
-**5-1. Activate Python Virtual Environment**
-```bash
-source venv/bin/activate
-```
-
-**5-2. Check Python and Installed Packages**
-```bash
-python --version
-pip list
-```
-
-**5-3. Check Environment Variables**
-```bash
-env | grep GOOGLE
-```
-*Example Output:*
-```
-GOOGLE_CLOUD_PROJECT=your-project-id
-GOOGLE_CLOUD_LOCATION=us-central1
-```
-
-**5-4. Test with a Simple Python Script**
-
-*   Create a file named `test_env.py` in `/workspace`:
-    ```python
-    import os
-
-    print("Current directory:", os.getcwd())
-    print("GOOGLE_CLOUD_PROJECT:", os.getenv("GOOGLE_CLOUD_PROJECT"))
-    print("GOOGLE_CLOUD_LOCATION:", os.getenv("GOOGLE_CLOUD_LOCATION"))
-    ```
-*   Run the script:
+    First, navigate to the correct directory:
     ```bash
-    python test_env.py
+    cd mini-insar-pipeline
     ```
-*Example Output:*
-```
-Current directory: /workspace
-GOOGLE_CLOUD_PROJECT: your-project-id
-GOOGLE_CLOUD_LOCATION: us-central1
-```
-This confirms that your Python environment, environment variables, and sandbox are all working correctly.
 
-## 6. Basic Gemini CLI Examples (for Non-Technical Users)
+    Then, build the image (to install the new Python dependencies) and run the container:
+    ```bash
+    docker-compose build
+    docker-compose run --rm insar /bin/bash
+    ```
 
-**Check project status:**
-```bash
-gemini status
-```
+3.  **Inside the Container: Run the Pipeline**:
+    Once you are inside the Docker container's bash shell (indicated by a prompt like `root@...:/opt/project#`), you can run the pipeline steps.
 
-**List files:**
-```bash
-ls -la
-```
+    *   **Download Data**:
+        You will need an `aoi.geojson` file defining your Area of Interest. An example `aoi.geojson` for Ashburton, NZ, has been provided in the project root. The `download_data.py` script will select two scenes closest to the specified start and end dates, which is ideal for pre/post-event InSAR comparison.
 
-**Ask a simple question:**
-```bash
-gemini ask "What is the current directory?"
-```
-*Example Output:*
-```
-Current directory: /workspace
-```
+        *Context: The Ashburton flood in 2021 occurred between May 29th and May 31st [1].*
 
-## 7. Summary
+        ```bash
+        # Usage: python3 /path/to/script.py aoi.geojson YYYYMMDD YYYYMMDD /output/dir
+        # Example for Ashburton pre/post-flood comparison (May 11, 2021 and June 4, 2021)
+        python3 /opt/scripts/download_data.py /opt/project/aoi.geojson 20210511 20210604 /opt/data/SAFE
+        ```
 
-By following this guide, even non-technical users can launch the sandbox, verify the environment, and perform basic Gemini CLI operations. We recommend getting comfortable with the free operations first before exploring cloud service integrations and more advanced code execution.
+---
+[1] Ashburton District Council. (2021). *Canterbury floods 2021*. Retrieved from https://www.ashburtondc.govt.nz/our-district/emergency-management/canterbury-floods-2021
 
-💡 This guide is designed to allow anyone to independently get started, verify the setup, and learn the basics of the Gemini CLI.
+    *   **Run SNAP GPT Pipeline**:
+        Adjust the `--in1` and `--in2` paths to match the actual `.SAFE` folder names downloaded in the previous step. You can find these names in the `/opt/data/SAFE` directory inside the container.
 
-## 8. Sub-projects
+        ```bash
+        # Usage: python3 /path/to/script.py /path/to/graph.xml --in1 /path/to/master.SAFE --in2 /path/to/slave.SAFE --out /output/dir
+        python3 /opt/scripts/run_gpt.py /opt/graphs/insar_graph.xml --in1 /opt/data/SAFE/S1A_... --in2 /opt/data/SAFE/S1B_... --out /opt/data/out
+        ```
 
-This repository contains several sub-projects. For detailed instructions and information on the Mini InSAR Pipeline, please refer to its dedicated README:
+    *   **Convert, Visualize, and Report**:
+        ```bash
+        python3 /opt/scripts/convert_vrt_to_tif.py /opt/data/out
+        python3 /opt/scripts/generate_report.py /opt/data/out
+        ```
 
-*   [Mini InSAR Pipeline README](mini-insar-pipeline/README.md)
+## Validation & Expected Outputs
 
+After running the pipeline, you should find the following in the `mini-insar-pipeline/data/out/` directory:
 
+*   `insar_filtered.tif`: The filtered interferogram (phase-filtered).
+*   `insar_filtered.tif.png`: A visualization of the interferogram.
+*   `insar_report.txt`: A short textual report with output paths.
+
+### Sanity Checks
+*   The interferogram should show coherent fringes over non-vegetated areas (coastal/urban).
+*   If the interferogram is noisy (low coherence), try picking acquisition dates that are closer together.
+*   If outputs are empty or you encounter an error, check the SNAP GPT logs printed to the console. Common issues include incorrect `.SAFE` paths or a missing manifest file.
+
+## Troubleshooting
+
+For common issues and their resolutions, please refer to the [TROUBLESHOOTING.md](TROUBLESHOOTING.md) file.
+
+## Code Licensing
+
+This pipeline's code is provided as-is. If you intend to publish or distribute this code, it is highly recommended to choose and include an appropriate open-source license (e.g., MIT, Apache 2.0) in your repository. This clarifies how others can use, modify, and distribute your code.
+
+## Data Licensing
+
+The Sentinel-1 data downloaded via this pipeline is sourced from the Alaska Satellite Facility (ASF). While ASF data is generally publicly funded and available, specific usage policies, especially concerning commercial applications, can vary by dataset.
+
+**It is crucial for users to consult the End User License Agreements (EULAs) associated with each specific data collection to determine the exact commercial use policy and any other restrictions.**
+
+## Notes, Limitations, and Next Steps
+
+*   **SNAP / SNAPHU**: For full phase unwrapping, you would typically use `snaphu` (usually a separate installation) or SNAP’s Unwrapping operator. This may require extra packages and configuration.
+*   **SBAS / PS-InSAR**: This mini-pipeline handles a single interferogram (DInSAR). Time-series analysis (SBAS/PS) requires additional tooling (e.g., MintPy, StaMPS) and significantly more computation.
+*   **HPC Scaling**: For production use, the `gpt` call can be wrapped inside job arrays (e.g., SLURM) or scaled using services like AWS Batch / Fargate.
+*   **Performance**: SNAP processing is CPU and I/O intensive. It benefits from >8GB RAM and multiple cores. A local machine is sufficient for small Areas of Interest (AOIs), but larger-scale processing would require HPC resources. **Note that this pipeline is configured for CPU-only processing. While SNAP can utilize GPUs for certain operations, this setup does not require or configure GPU acceleration, which would add significant complexity.**
+
+### Learning Points for HPC/Geospatial Roles
+
+This project, especially the troubleshooting process, offers valuable insights for those interested in High-Performance Computing (HPC) or geospatial roles:
+
+*   **Resource Management (Disk I/O, CPU/RAM)**: Understanding how to manage computational resources, especially disk space and RAM, is fundamental. A common real-world problem is encountering I/O errors (`[Errno 5]`) due to full disk space, or processes being `Killed` due to insufficient RAM. This often happens with large virtual disks (WSL2/Docker) or memory-intensive scientific applications. Visual tools like **WinDirStat** are invaluable for diagnosing disk space. Learning to use system commands (e.g., `wsl --shutdown`, `Optimize-VHD` in PowerShell) to safely shrink virtual disks, and configuring Docker Desktop's memory allocation, are critical skills in any data-intensive environment.
+*   **Environment & Dependency Management (Docker, `Dockerfile`)**: Ensuring a consistent and reproducible environment across different systems (e.g., local machine vs. cloud cluster) is crucial. Dockerizing the pipeline helps manage complex dependencies like ESA SNAP.
+*   **Software Versioning & Compatibility (SNAP Graph XML)**: Software versions can introduce breaking changes (e.g., the `insar_graph.xml` syntax error). Debugging these compatibility issues and adapting configurations is a key skill.
+*   **Command-Line Proficiency**: Most HPC and geospatial processing tasks rely heavily on command-line tools (e.g., `docker-compose`, `gpt`, `python` scripts, `df`, `wmic`).
+*   **Troubleshooting Mindset**: The iterative process of identifying errors, hypothesizing causes, testing solutions, and documenting findings is central to any technical role.
+
+### Troubleshooting Experience from a Contributor
+
+When I first ran this pipeline, I encountered various errors and found it very challenging. Therefore, I would like to share what I learned: this debugging journey is a very normal, everyday process.
+
+Tackling these problems is exactly what professional researchers and engineers do daily. The errors I faced were the kind of issues they resolve every day.
+
+*   Simple input mistakes in file paths that are easy to overlook.
+*   Syntax issues in the graph XML file that required updates to match the software version.
+*   Insufficient disk space that needed cleanup.
+
+With each error I resolved, I felt I was steadily moving forward. This trial-and-error process is not a sign of failure. Rather, it is an essential and valuable experience in the field of actual scientific and technical computing. So, if you encounter errors, it is a sign that you are on the right track.
