@@ -44,8 +44,7 @@ This document outlines common issues encountered during the setup and execution 
 
 **Resolution:** The `session=session` argument was removed from the `asf.geo_search()` call in `download_data.py`.
 
-
-## 5. SNAP GPT Fails with "Specified 'file' [...] does not exist." (Missing .SAFE directory)
+## 4. SNAP GPT Fails with "Specified 'file' [...] does not exist." (Missing .SAFE directory)
 
 **Problem:** The `run_gpt.py` script fails with an error message like `Error: [NodeId: Read-Slave] Specified 'file' [/opt/data/SAFE/S1A_...SAFE] does not exist.`
 
@@ -58,7 +57,7 @@ This document outlines common issues encountered during the setup and execution 
 3.  **Rebuild Docker Image:** After modifying `Dockerfile` and `download_data.py`, you must rebuild the Docker image using `docker-compose build`.
 4.  **Re-run Pipeline:** Then, re-run the pipeline starting from the `download_data.py` step.
 
-## 4. SNAP GPT Command Fails with `UnknownFieldException`
+## 5. SNAP GPT Command Fails with `UnknownFieldException`
 
 **Problem:** The `run_gpt.py` script fails with an error similar to `com.thoughtworks.xstream.converters.reflection.AbstractReflectionConverter$UnknownFieldException: No such field org.esa.snap.core.gpf.graph.Graph.connection`.
 
@@ -90,7 +89,7 @@ This document outlines common issues encountered during the setup and execution 
 
 3.  **Update the Graph:** The `insar_graph.xml` was updated to reflect this new syntax, resolving the incompatibility.
 
-## 7. `[Errno 5] Input/output error` during unzipping
+## 6. `[Errno 5] Input/output error` during unzipping
 
 **Problem:** The `download_data.py` script fails during the unzip step with `ERROR: Download or unzipping failed. Details: [Errno 5] Input/output error`.
 
@@ -148,7 +147,7 @@ powercfg.exe /hibernate off
 ```
 *   **Manage System Restore Points:** Reduce the disk space allocated for system restore points or delete older ones. Search for "Create a restore point" in Windows, then configure settings.
 
-## 6. `IndentationError` in `download_data.py`
+## 7. IndentationError in download_data.py
 
 **Problem:** The `download_data.py` script fails with an `IndentationError: unexpected indent`.
 
@@ -292,12 +291,4 @@ powercfg.exe /hibernate off
             <parameters/>
           </node>
         ```
-5.  **Re-run the pipeline**: After saving the modified `insar_graph.xml`, re-run the `run_gpt.py` script inside the Docker container.        ```
-        After saving `.wslconfig`, you must shut down and restart WSL for the changes to take effect. Open PowerShell or Command Prompt (not within WSL) and run: `wsl --shutdown`. Then, restart your Docker Desktop application. You can verify the allocated memory by running `free -h` inside your WSL terminal or `docker info | grep "Total Memory"` after Docker Desktop has restarted.
-    *   After changing settings, apply and restart Docker Desktop.
-
-3.  **Reduce Memory Footprint (if possible):**
-    *   If the issue persists, review the script's memory usage. For plotting large images, sometimes downsampling or processing in chunks can help, though this might require code modifications.
-    *   Ensure no other memory-intensive applications are running on your host machine simultaneously.
-
-4.  **Re-run:** After adjusting memory settings, re-run the pipeline steps.
+5.  **Re-run the pipeline**: After saving the modified `insar_graph.xml`, re-run the `run_gpt.py` script inside the Docker container.
