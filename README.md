@@ -70,7 +70,7 @@ This is a minimum viable InSAR pipeline, intended to demonstrate phase-based dis
     docker-compose run --rm insar /bin/bash
     ```
 
-3.  **Inside the Container: Run the Pipeline**:
+4.  **Inside the Container: Run the Pipeline**:
     Once you are inside the Docker container's bash shell (indicated by a prompt like `root@...:/opt/project#`), you can run the pipeline steps.
 
     *   **Download Data**:
@@ -116,7 +116,7 @@ After running the pipeline, you should find the following in the `mini-insar-pip
 
 ## Troubleshooting
 
-For common issues and their resolutions, please refer to the [TROUBLESHOOTING.md](TROUBLESHOOTING.md) file.
+For common issues and their resolutions, please refer to the [TROUBLESHOOTING.md](mini-insar-pipeline/TROUBLESHOOTING.md) file.
 
 ## Code Licensing
 

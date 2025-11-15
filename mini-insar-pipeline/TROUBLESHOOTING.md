@@ -116,20 +116,25 @@ This document outlines common issues encountered during the setup and execution 
 **Tip for Freeing Up Space:**
 A comprehensive list of methods to free up disk space on your host machine:
 
-*   **Project-Specific Data:**
-    *   Clear the contents of the `data/SAFE` and `data/out` directories.
+### Project-Specific Data
 
-*   **General Windows Cleanup:**
-    *   **Disk Cleanup Tool:** Run the built-in Windows "Disk Cleanup" utility and select "Clean up system files" to remove old Windows Update files.
-    *   **Uninstall Unused Apps:** Go to "Settings" > "Apps" > "Installed apps" and uninstall any software you no longer need.
-    *   **Disk Analysis Tools:** Use free tools like **WinDirStat** or **TreeSize Free** to visualize what is consuming your disk space. This is often the most effective way to find large, forgotten files.
+*   Clear the contents of the `data/SAFE` and `data/out` directories.
 
-*   **Docker Cleanup:**
-    *   The `docker system prune -a` command is an effective but aggressive way to reclaim disk space by removing all stopped containers, unused networks, and dangling images.
-        *   **Real-World Example:** One user resolved an `[Errno 5]` error by running `docker system prune -a`, which successfully reclaimed over 10GB of disk space.
-    *   For a less aggressive approach, you can use more targeted commands:
-        *   `docker builder prune`: Safely removes only the build cache.
-        *   `docker image prune`: Safely removes "dangling" images (images not tagged or used by any container).
+### General Windows Cleanup
+
+*   **Disk Cleanup Tool:** Run the built-in Windows "Disk Cleanup" utility and select "Clean up system files" to remove old Windows Update files.
+*   **Uninstall Unused Apps:** Go to "Settings" > "Apps" > "Installed apps" and uninstall any software you no longer need.
+*   **Disk Analysis Tools:** Use free tools like **WinDirStat** or **TreeSize Free** to visualize what is consuming your disk space. This is often the most effective way to find large, forgotten files.
+
+### Docker Cleanup
+
+*   The `docker system prune -a` command is an effective but aggressive way to reclaim disk space by removing all stopped containers, unused networks, and dangling images.
+    *   **Real-World Example:** One user resolved an `[Errno 5]` error by running `docker system prune -a`, which successfully reclaimed over 10GB of disk space.
+*   For a less aggressive approach, you can use more targeted commands:
+    *   `docker builder prune`: Safely removes only the build cache.
+    *   `docker image prune`: Safely removes "dangling" images (images not tagged or used by any container).
+
+### Advanced Windows Cleanup (Use with Caution)
 
 For Windows users, you can also free up significant space on your C: drive by running the following command in an **administrator PowerShell or Command Prompt**:
 ```
@@ -140,7 +145,7 @@ This command cleans up the Windows Component Store, removing older versions of s
 Dism.exe /online /Cleanup-Image /StartComponentCleanup /ResetBase
 ```
 
-Other advanced methods to free up space on Windows (use with caution):
+Other advanced methods to free up space on Windows:
 *   **Disable Hibernation:** If you don't use hibernation, disabling it can free up significant space (equal to your RAM size). Run in **administrator PowerShell or Command Prompt**:
     ```
 powercfg.exe /hibernate off
