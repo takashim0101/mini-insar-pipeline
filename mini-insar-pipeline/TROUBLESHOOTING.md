@@ -592,3 +592,17 @@ ls -R /opt/data/out
 
 
     This ensures that the installed PyTorch version is compatible with the container's environment.
+
+---
+
+# Troubleshooting Experience from a Contributor
+
+When I first ran this pipeline, I encountered various errors and found it very challenging. Therefore, I would like to share what I learned: this debugging journey is a very normal, everyday process.
+
+Tackling these problems is exactly what professional researchers and engineers do daily. The errors I faced were the kind of issues they resolve every day.
+
+*   Simple input mistakes in file paths that are easy to overlook.
+*   Syntax issues in the graph XML file that required updates to match the software version.
+*   Insufficient disk space that needed cleanup.
+
+With each error I resolved, I felt I was steadily moving forward. This trial-and-error process is not a sign of failure. Rather, it is an essential and valuable experience in the field of actual scientific and technical computing. So, if you encounter errors, it is a sign that you are on the right track.

@@ -371,23 +371,8 @@ This project, especially the troubleshooting process, offers valuable insights f
     *   **Demonstrated Skill**: The iterative process of identifying errors (e.g., `404 Not Found` for SNAP installer, `gdal-config not found`, `Python configuration failed`), hypothesizing causes, testing solutions, and documenting findings is central to any technical role. This project involved debugging version mismatches, environmental inconsistencies, and dependency issues.
     *   **Relevance to Roles**: This skill is fundamental for any technical role, emphasizing a practical, outcome-driven approach to identifying, diagnosing, and resolving complex technical challenges.
 
-*   **Communication and Documentation**:
-    *   **Demonstrated Skill**: The proactive attitude to summarize acquired knowledge into clear documentation (`README.md`, `TROUBLESHOOTING.md`) for the benefit of other technical professionals and the community. This includes translating technical concepts for both general and technical audiences.
-    *   **Relevance to Roles**: This skill is crucial for effectively conveying technical information to diverse audiences, contributing to knowledge sharing, user training, and overall project clarity.
 
----
 
-# Troubleshooting Experience from a Contributor
-
-When I first ran this pipeline, I encountered various errors and found it very challenging. Therefore, I would like to share what I learned: this debugging journey is a very normal, everyday process.
-
-Tackling these problems is exactly what professional researchers and engineers do daily. The errors I faced were the kind of issues they resolve every day.
-
-*   Simple input mistakes in file paths that are easy to overlook.
-*   Syntax issues in the graph XML file that required updates to match the software version.
-*   Insufficient disk space that needed cleanup.
-
-With each error I resolved, I felt I was steadily moving forward. This trial-and-error process is not a sign of failure. Rather, it is an essential and valuable experience in the field of actual scientific and technical computing. So, if you encounter errors, it is a sign that you are on the right track.
 
 ---
 
@@ -407,19 +392,7 @@ The Sentinel-1 data downloaded via this pipeline is sourced from the Alaska Sate
 
 
 
----
 
-# Troubleshooting Experience from a Contributor
-
-When I first ran this pipeline, I encountered various errors and found it very challenging. Therefore, I would like to share what I learned: this debugging journey is a very normal, everyday process.
-
-Tackling these problems is exactly what professional researchers and engineers do daily. The errors I faced were the kind of issues they resolve every day.
-
-*   Simple input mistakes in file paths that are easy to overlook.
-*   Syntax issues in the graph XML file that required updates to match the software version.
-*   Insufficient disk space that needed cleanup.
-
-With each error I resolved, I felt I was steadily moving forward. This trial-and-error process is not a sign of failure. Rather, it is an essential and valuable experience in the field of actual scientific and technical computing. So, if you encounter errors, it is a sign that you are on the right track.
 
 ---
 
