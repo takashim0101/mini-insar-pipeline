@@ -145,8 +145,7 @@ Dism.exe /online /Cleanup-Image /StartComponentCleanup /ResetBase
 
 Other advanced methods to free up space on Windows:
 *   **Disable Hibernation:** If you don't use hibernation, disabling it can free up significant space (equal to your RAM size). Run in **administrator PowerShell or Command Prompt**:
-    ```
-powercfg.exe /hibernate off
+    ```powercfg.exe /hibernate off
 ```
 *   **Manage System Restore Points:** Reduce the disk space allocated for system restore points or delete older ones. Search for "Create a restore point" in Windows, then configure settings.
 
@@ -166,6 +165,8 @@ powercfg.exe /hibernate off
 **Problem:** The processing script (e.g., `generate_report.py` or `run_gpt.py`) terminates abruptly with a "Killed" message, without a clear error traceback.
 
 **Cause:** The "Killed" message typically indicates that the process ran out of available memory (RAM) and was terminated by the operating system (or Docker's resource limits). Scientific computing tasks, especially InSAR processing, are highly memory-intensive.
+
+> **Note:** InSAR processing can take a significant amount of time (15 minutes to over an hour for a pair of full Sentinel-1 SLC scenes). A long-running process is not necessarily an error. Only investigate if the process truly hangs without any output for an extended period, or if it explicitly terminates with a "Killed" message.
 
 **Resolution:**
 
@@ -335,7 +336,7 @@ The most robust solution is to use a Docker base image that natively supports a 
 
 1.  **Modify `Dockerfile` to use an Ubuntu 18.04 base image:**
     *   Change the `FROM` line in your `Dockerfile` from `nvidia/cuda:11.8.0-base-ubuntu22.04` to `nvidia/cuda:11.8.0-base-ubuntu18.04`. Ubuntu 18.04 (Bionic) typically includes Python 3.6 as its default `python3`.
-    *   Remove any steps related to adding the `deadsnakes` PPA or explicitly installing `python3.6` via `apt-get install python3.6`.
+    *   Remove any steps related to adding the `deadsnakes` PPA or explicitly installing `python3.6` via `apt-get install`.
     *   Ensure `python3-dev` and `build-essential` are installed for the new base image.
 
 2.  **Clean Docker System:**
@@ -376,6 +377,9 @@ The most robust solution is to use a Docker base image that natively supports a 
 1.  The Docker Compose configuration is not correctly requesting the GPU.
 2.  The host machine (especially a WSL2 environment) is not correctly configured to pass the GPU through to Docker containers.
 
+> **Note on GPU Utilization:**
+> Even if your GPU is correctly detected within the Docker container (as verified by `nvidia-smi`), the current version of ESA SNAP (and specifically the InSAR processing operators used in this pipeline) does NOT support GPU acceleration. Therefore, you will likely observe 0% GPU utilization and 0MiB GPU memory usage in `nvidia-smi` while the InSAR pipeline is running. This is expected behavior and does not indicate a problem with your GPU setup or Docker configuration. The processing will be performed on the CPU.
+
 **Resolution:**
 
 1.  **Check `docker-compose.yml`:**
@@ -401,4 +405,190 @@ The most robust solution is to use a Docker base image that natively supports a 
         cd mini-insar-pipeline
         docker-compose run --rm insar /bin/bash
         ```
-    *   Inside the container, test again with `nvidia-smi`. If it now shows your GPU details, the connection is successful.
+    *   Inside the container, test again with `nvidia-smi`.
+    *   A successful connection will display a table with your GPU's details (name, driver version, etc.). An unsuccessful connection will result in an error like `command not found` or `NVIDIA-SMI has failed`.
+
+---
+## 14. PyTorch Fails to Detect GPU or Throws CUDA Error
+
+**Problem:** You have installed PyTorch, but your script reports that `torch.cuda.is_available()` is `False`, or you encounter CUDA-related errors at runtime.
+
+**Cause:** This is almost always caused by a mismatch between the CUDA version PyTorch was compiled for and the CUDA version available in the Docker container. For example, you may have installed a PyTorch version for CUDA 12.1 (`cu121`) while the container provides CUDA 11.8.
+
+**Resolution:**
+
+1.  **Uninstall Incorrect PyTorch:**
+    ```bash
+    pip3 uninstall torch torchvision torchaudio
+    ```
+2.  **Install Correct PyTorch for CUDA 11.8:**
+    Re-install PyTorch using the correct index URL for CUDA 11.8:
+    ```bash
+    pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+    ```
+
+---
+
+## Understanding Successful Log Output and Next Steps
+
+When the pipeline runs successfully, you might see log messages similar to these, indicating a normal and expected progression:
+
+### Log Interpretation:
+
+**1. SRTM DEM のダウンロード完了**
+```
+xdata/dem/SRTMGL1/S45E172.SRTMGL1.hgt.zip
+....10%....20%....90% done.
+```
+→ この地区 (S45E172) のDEMが正しく落ちてきています。
+
+**2. SNAP（GAMMA バックエンド含む）が jBLAS をロードしてクリーンアップ**
+```
+org.jblas INFO Deleting /tmp/jblas...
+```
+→ SNAP の InSAR オペレーションでは内部で Java + jBLAS（線形代数）を使うため、
+テンポラリにライブラリを展開し、処理後に削除します。
+これは **完全に正常** です。(異常の場合はここでエラーが出ます)
+
+**3. プロンプトが帰ってきた**
+```
+root@4bde7702323:/opt/project#
+```
+→ つまり **前のコマンドはすべて成功した** ということです。
+
+### Next Steps:
+
+あなたが次に行うべきは **パイプラインの次のステップのコマンドを実行** することです。
+
+もし Mini InSAR Pipeline v2 を使っているなら：
+
+▶️ **Full example run（続き）**
+
+1.  **データダウンロード（もう完了）**
+
+2.  **コレジストレーション & インターフェログラム生成**
+    ```bash
+    python /opt/scripts/run_gpt.py /opt/graphs/insar_graph.xml \
+        --in1 /opt/data/SAFE/S1A_XXXX.SAFE \
+        --in2 /opt/data/SAFE/S1A_YYYY.SAFE \
+        --out /opt/data/out
+    ```
+
+3.  **VRT → GeoTIFF 変換**
+    ```bash
+    python /opt/scripts/convert_vrt_to_tif.py /opt/data/out
+    ```
+
+4.  **レポート生成（干渉縞のプレビュー付き）**
+    ```bash
+    python /opt/scripts/generate_report.py /opt/data/out
+    ```
+
+### Judging Pipeline Completion:
+
+✅ **このログが意味していること**
+
+あなたが貼った部分は：
+
+*   SRTM DEM ダウンロード
+*   SNAP/jBLAS の内部処理
+*   一時ファイル削除
+*   エラーなしでプロンプトが返った
+
+という **途中ステップが成功した** という内容です。
+
+これは “完了” ではなく “次のステップに進める状態” という意味のログです。
+
+🔥 **パイプライン全体が完了したかを判断する方法**
+
+InSAR Pipeline v2 の全処理が完了した場合は：
+
+`/opt/data/out/` 内に以下が出ているはずです：
+
+*   `coherence.tif`
+*   `interferogram.tif`
+*   `wrapped_phase.tif`
+*   `unwrapped_phase.tif`（ある場合）
+*   `amplitude.tif`
+*   中間 VRT ファイル
+*   `report.html`（レポート生成スクリプトを使った場合）
+
+もし 上記が出ていなければ、まだ途中 です。
+
+📌 **今あなたのログは “どのステップ？”**
+
+あなたが貼ったログは DEMダウンロード → SNAP 起動処理の一部 → 正常終了
+これは主に：
+
+*   `download_data.py` か
+*   `run_gpt.py` の前半部分
+
+に該当します。
+
+🧭 **次に確認したいこと（これで全体完了かすぐ判定できます）**
+👉 コマンドをコンテナ内で実行してください：
+```bash
+ls -R /opt/data/out
+```
+
+すると：
+
+*   沢山の GeoTIFF や VRT がある → 全体ほぼ完了
+*   空 or フォルダ自体がない → まだ全体は終わっていない
+
+---
+
+### Current Pipeline Status (Based on `insar_filtered.tif`):
+
+✅ **結論から言うと：**
+
+まだ InSAR パイプラインは “完全には終了していません”。
+
+現在出ているのは `insar_filtered.tif` 1つだけ なので、
+全工程のうち「後半の一部まで進んだ」状態 です。
+
+📌 **本来、フル実行が成功したときに `/opt/data/out` に出るべき代表ファイル**
+
+あなたの InSAR Pipeline（Mini InSAR v2）なら通常は：
+
+*   `coherence.tif`
+*   `interferogram.tif`
+*   `wrapped_phase.tif`
+*   `unwrapped_phase.tif`（ある場合）
+*   `amplitude_master.tif`
+*   `amplitude_slave.tif`
+*   `diff_phase.tif`
+*   `insar_filtered.tif` ← 今これだけ出てる
+*   `report.html`（`generate_report.py` まで実行したら）
+*   中間の `.vrt` ファイル多数
+
+などが揃います。
+
+今あるのは 最終的な出力のほんの１つだけ。
+
+🔥 **現状はどのステップまで進んでいるか？**
+
+`insar_filtered.tif` は通常、
+
+▶ フィルタリング・地形補正以降の後処理の一部が成功した段階
+
+つまり：
+
+*   マスター/スレーブ SLC 読込
+*   オルビット補正
+*   コアレジストレーション
+*   インターフェログラム生成
+*   コヒーレンス生成
+*   位相フィルタリング
+
+などの途中までは動いている可能性が高い。
+
+しかし：
+
+*   コヒーレンス
+*   インターフェログラム（wrapped phase）
+
+などが出ていないため、まだ半分〜7割程度で止まっている。
+
+
+    This ensures that the installed PyTorch version is compatible with the container's environment.

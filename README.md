@@ -1,132 +1,328 @@
-# Mini InSAR Pipeline v2
+# Mini InSAR Pipeline v2 – Professional Edition
 
-A reproducible, Dockerized Mini InSAR Pipeline that:
-- downloads two Sentinel-1 scenes from the Alaska Satellite Facility (ASF) for an AOI & time window,
-- runs an ESA SNAP processing graph (coregistration → interferogram → filtering),
-- converts results to GeoTIFFs,
-- produces a simple visualization (displacement map) and a short report.
+A fully reproducible, GPU‑accelerated InSAR processing pipeline built with Docker, SNAP, Python, and modern infrastructure practices. This project demonstrates how a single engineer can design, deploy, and operate a compact but production‑ready InSAR workflow—covering data acquisition, preprocessing, interferogram generation, and displacement visualization.
 
-This is a minimum viable InSAR pipeline, intended to demonstrate phase-based displacement output.
-
-This project demonstrates how advanced SAR workflows can be implemented by a single engineer, making satellite-based deformation monitoring reproducible, automated, and ready for integration into national-scale geospatial systems.
-
-Although this pipeline was built end-to-end by one person for demonstration purposes, the architecture is intentionally modular, maintainable, and suited for team-based development and operational environments.
-
-# What this project demonstrates
-
-## 🟦 Full Pipeline Engineering (Single-person architecture)
-- End-to-end design of an operational InSAR pipeline
-- Automated data ingest → preprocessing → interferogram → phase → displacement output
-- Fully reproducible Dockerised environment
-
-## 🟦 GeoAI & SAR Processing
-- Sentinel-1 SAR handling, InSAR concepts, geospatial formats (GeoTIFF, VRT, GeoJSON)
-- Python-based workflow automation (SNAP, Snappy, custom tooling)
-- HPC-aware processing (I/O optimization, system resource tuning)
-
-## 🟦 Infrastructure & Systems Engineering
-- Containerization (Dockerfile, docker-compose)
-- Multi-language stack debugging (Python, Java, C-extensions, Linux)
-- Infrastructure as Code principles for scientific workflows
-
-## 🟦 Documentation & Knowledge Transfer
-- Clear troubleshooting guides, reproducible instructions, technical notes
-- [HPC Support Case Study (English)](./mini-insar-pipeline/HPC_SUPPORT_CASE_STUDY_EN.md)
-
-## How to Run
-
-1.  **Set Earthdata Login Credentials**:
-    Data download is handled by `asf-search`, which requires a NASA Earthdata Login account.
-
-    *   **Create an Account**: If you don't have one, [register for a free NASA Earthdata account](https://urs.earthdata.nasa.gov/users/new).
-    *   **Set Environment Variables**: Set your credentials as environment variables in your **host shell** *before* running `docker-compose`.
-
-    *   **For Bash/Zsh (Linux/macOS):**
-        ```bash
-        export EARTHDATA_USERNAME=your_earthdata_username
-        export EARTHDATA_PASSWORD=your_earthdata_password
-        ```
-    *   **For PowerShell (Windows):**
-        ```powershell
-        $env:EARTHDATA_USERNAME="your_earthdata_username"
-        $env:EARTHDATA_PASSWORD="your_earthdata_password"
-        ```
-    *   *Replace `your_earthdata_username` and `your_earthdata_password` with your actual credentials.*
-
-2.  **Windows/WSL2 Users: Configure Docker Memory (Crucial for InSAR Processing)**
-
-    InSAR processing is memory-intensive. If you are running Docker Desktop on Windows with the WSL2 backend, it is crucial to allocate sufficient memory to WSL2 to prevent out-of-memory errors during SNAP processing.
-
-    1.  **Create or Edit `.wslconfig`**:
-        Create or edit a file named `.wslconfig` in your Windows user profile directory (`%USERPROFILE%`, typically `C:\Users\<YourUsername>\`).
-
-    2.  **Add Configuration**:
-        Add the following content to the `.wslconfig` file. Adjust `memory` and `processors` based on your system's resources, but ensure `memory` is at least 16GB for this pipeline.
-
-        ```ini
-        [wsl2]
-        memory=16GB       # Allocate 16GB of RAM to WSL2
-        processors=6      # Allocate 6 CPU cores to WSL2
-        swap=16GB         # Allocate 16GB of swap space
-        localhostForwarding=true
-        ```
-
-    3.  **Restart WSL**:
-        After saving `.wslconfig`, you must shut down and restart WSL for the changes to take effect. Open PowerShell or Command Prompt (not within WSL) and run:
-
-        ```powershell
-        wsl --shutdown
-        ```
-        Then, restart your Docker Desktop application. You can verify the allocated memory by running `free -h` inside your WSL terminal or `docker info | grep "Total Memory"` after Docker Desktop has restarted.
-
-3.  **Build and Run the Container**:
-    **Important:** All `docker-compose` commands must be run from within the `mini-insar-pipeline` directory.
-
-    *   **ESA SNAP Installer**: Due to issues with direct download of ESA SNAP 13.0.0, the `Dockerfile` is now configured to automatically download ESA SNAP 9.0.0 "All Toolboxes" **Linux 64-bit** installer (`.sh` file) from the official STEP website during the Docker image build process. Manual download and placement of the installer are no longer required.
-
-    First, navigate to the correct directory:
-    ```bash
-    cd mini-insar-pipeline
-    ```
-
-    Then, build the image (to install the new Python dependencies) and run the container:
-    ```bash
-    docker-compose build
-    docker-compose run --rm insar /bin/bash
-    ```
-
-4.  **Inside the Container: Run the Pipeline**:
-    Once you are inside the Docker container's bash shell (indicated by a prompt like `root@...:/opt/project#`), you can run the pipeline steps.
-
-    *   **Download Data**:
-        You will need an `aoi.geojson` file defining your Area of Interest. An example `aoi.geojson` for Ashburton, NZ, has been provided in the project root. The `download_data.py` script will select two scenes closest to the specified start and end dates, which is ideal for pre/post-event InSAR comparison.
-
-        *Context: The Ashburton flood in 2021 occurred between May 29th and May 31st [1].*
-
-        ```bash
-        # Usage: python3 /path/to/script.py aoi.geojson YYYYMMDD YYYYMMDD /output/dir
-        # Example for Ashburton pre/post-flood comparison (May 11, 2021 and June 4, 2021)
-        python3 /opt/scripts/download_data.py /opt/project/aoi.geojson 20210511 20210604 /opt/data/SAFE
-        ```
+The goal is to provide a **clean, minimal, operationally realistic reference pipeline** that can be integrated into GeoAI platforms, cloud/HPC environments, or national geospatial systems.
 
 ---
-[1] Ashburton District Council. (2021). *Canterbury floods 2021*. Retrieved from https://www.ashburtondc.govt.nz/our-district/emergency-management/canterbury-floods-2021
 
-    *   **Run SNAP GPT Pipeline**:
-        Adjust the `--in1` and `--in2` paths to match the actual `.SAFE` folder names downloaded in the previous step. You can find these names in the `/opt/data/SAFE` directory inside the container.
+# 🚀 Key Capabilities
 
-        ```bash
-        # Usage: python3 /path/to/script.py /path/to/graph.xml --in1 /path/to/master.SAFE --in2 /path/to/slave.SAFE --out /output/dir
-        python3 /opt/scripts/run_gpt.py /opt/graphs/insar_graph.xml --in1 /opt/data/SAFE/S1A_... --in2 /opt/data/SAFE/S1B_... --out /opt/data/out
-        ```
+## **1. End‑to‑End InSAR Workflow (Single‑Engineer Architecture)**
 
-    *   **Convert, Visualize, and Report**:
-        ```bash
-        python3 /opt/scripts/convert_vrt_to_tif.py /opt/data/out
-        python3 /opt/scripts/generate_report.py /opt/data/out
-        ```
+*   Automated search/download of Sentinel‑1 SLC scenes (ASF)
+*   SNAP graph processing (coregistration → interferogram → filtering)
+*   GeoTIFF/VRT output for analysis and visualization
+*   Simple Python‑based displacement visualization + reporting
+*   Fully reproducible Docker environment
 
-## Validation & Expected Outputs
+## **2. GPU‑Ready Infrastructure (Optional, Recommended)**
+
+Supports GPU execution where possible, enabling:
+
+*   Faster matrix operations
+*   Faster unwrapping / filtering (future modules)
+*   Local experimentation with OLLAMA + GPU inside Docker
+
+## **3. GeoAI‑First Design**
+
+*   SAR automation with Python
+*   Clean I/O layer (GeoTIFF, VRT, JSON)
+*   Ready for ML extensions (e.g., coherence ML cleaners, PS selection)
+
+## **4. Production‑Ready Engineering Practices**
+
+*   Dockerfile + docker-compose orchestration
+*   Isolated and reproducible runtime
+*   Clear troubleshooting guides
+*   WSL2 memory configuration for stable SNAP processing
+*   [HPC Support Case Study (English)](./mini-insar-pipeline/HPC_SUPPORT_CASE_STUDY_EN.md)
+
+---
+
+# 🎯 Project Status & Next Steps (現在の進捗と次のステップ)
+
+現在のプロジェクトの進捗状況と、次に進むべきステップを整理します。
+
+## ✔ 現在の進捗
+
+*   **GPU テスト成功**: `gpu_test.py` を使用したGPUテストは成功し、Dockerコンテナ内でのGPUアクセスが確認済みです。
+*   **GPT Graph 本番処理成功**: Master / Slave / Target Product が正しく動作し、干渉画像生成（Interferogram）とフィルタリング（Goldstein filtering）まで完了しました。
+*   **Docker + SNAP + GPU + ASFデータ連携成功**: これが最大の難関でしたが、Docker環境、ESA SNAP、GPUパススルー、ASFデータ連携がすべて正常に機能しています。
+
+**🔥 つまり、InSARパイプラインの約50%が完了した地点にいます。**
+干渉画像（Interferogram）とフィルタリング（Goldstein filtering）が終了した段階です。
+
+## 📌 次にやるべき作業（優先順位順）
+
+現在のフォルダ構成と進捗に基づき、次に進むべきステップは以下の通りです。
+
+### 🥇 Step 1 — `run_gpt.py` を完成させる（今やるべき最重要ポイント）
+
+現在、`scripts/run_gpt.py` を完成させ、InSARパイプラインをCLIから完全に自動化することを目指します。Master/Slaveのパス、Graph Path、出力パスをPythonスクリプトで渡せるようにします。
+
+**例:**
+```bash
+python scripts/run_gpt.py \
+  --master /opt/data/...SAFE \
+  --slave /opt/data/...SAFE \
+  --graph graphs/insar_graph.xml \
+  --output /opt/data/out
+```
+これにより、パイプラインが「完全自動処理」になります。
+
+### 🥈 Step 2 — SNAPHUによる位相アンラップ（Unwrapping）
+
+現在のグラフでは、処理はInterferogramとFilteringで止まっています。変位を算出するためには、位相アンラップが必要です。
+
+**オプション:**
+*   Docker内でSNAPHUをビルドして接続する（Dockerfileに数行追加で可能）。
+*   SNAPのSNAPHU-Export機能を利用し、SNAPHUを実行後、結果をインポートする（スクリプト化可能）。
+
+### 🥉 Step 3 — LOS変位に変換（Phase → Displacement）
+
+SNAPHUでアンラップされた位相データから、以下の計算式で変位量（ミリメートル単位）を算出します。
+`unwrapped_phase × (λ / 4π)`
+これはPython（NumPyなど）で簡単に自動化できます。
+
+### 🏅 Step 4 — GeoTIFF 生成（`convert_vrt_to_tif.py`の活用）
+
+`scripts/convert_vrt_to_tif.py` は、DIM → VRT → GeoTIFFへの後処理用スクリプトです。InSARの最終成果物としてGeoTIFF形式が望ましいため、このステップまでパイプラインを接続します。
+
+### 🎖️ Step 5 — `generate_report.py` で自動レポート生成（任意）
+
+PDFまたはMarkdown形式での自動レポート生成が可能な構成です。
+**理想のレポート内容:**
+*   入力ペア情報
+*   ベースライン (bperp)
+*   コヒーレンスマップ
+*   変位マップ
+*   可視化図
+
+---
+
+# 📦 System Requirements
+
+### **Windows 10/11 + WSL2 + Docker Desktop**
+
+*   WSL2 backend **required**
+*   NVIDIA GPU + latest drivers
+*   Docker Desktop with **GPU support enabled**
+
+### **Python 3.10+ (host only for utility scripts)**
+
+Used only for optional helper tools.
+
+---
+
+# ⚙️ 1. Prepare Earthdata Login (Required)
+
+The pipeline uses **ASF Search API**, which requires NASA Earthdata credentials.
+
+Set environment variables before running Docker:
+
+### **PowerShell (Windows)**
+
+```powershell
+$env:EARTHDATA_USERNAME="your_earthdata_username"
+$env:EARTHDATA_PASSWORD="your_earthdata_password"
+```
+
+### **Bash (Linux/WSL)**
+
+```bash
+export EARTHDATA_USERNAME=your_earthdata_username
+export EARTHDATA_PASSWORD=your_earthdata_password
+```
+*Replace `your_earthdata_username` and `your_earthdata_password` with your actual credentials.*
+
+---
+
+# ⚙️ 2. Configure WSL2 Resources (Critical for SNAP)
+
+SNAP requires **high RAM**. Without this, the process will freeze or be killed.
+
+Create or edit:
+
+```
+%USERPROFILE%\.wslconfig
+```
+
+Add:
+
+```ini
+[wsl2]
+memory=16GB
+processors=6
+swap=16GB
+localhostForwarding=true
+```
+
+Apply changes:
+
+```powershell
+wsl --shutdown
+```
+
+Restart Docker Desktop.
+
+Verify memory:
+
+```bash
+free -h
+```
+
+---
+
+# ⚙️ 3. Install OLLAMA + GPU Support (Optional, Recommended)
+
+This pipeline is designed so you can:
+
+*   run OLLAMA on Windows host,
+*   expose GPU into Docker,
+*   accelerate SAR processing + AI‑based SAR assistants.
+
+**OLLAMA Install (Windows):**
+[https://ollama.com/download](https://ollama.com/download)
+
+Verify GPU access:
+
+```powershell
+ollama run llama3 "Test GPU"
+```
+
+---
+
+# ⚙️ 4. Verify Docker GPU Access
+
+### Test with CUDA Base Image
+
+```powershell
+docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvidia-smi
+```
+
+### Test PyTorch GPU (for future ML modules)
+
+```powershell
+docker run --rm --gpus all -it pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime \  
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+```
+
+Should output:
+
+```
+True NVIDIA GeForce RTX 4060 Laptop GPU
+```
+
+If this works, GPU passthrough is ready.
+
+---
+
+## 6. Example Pipeline Execution
+
+### Step 1 — Download Sentinel‑1 SLC (Optional)
+
+If you already have the Sentinel-1 `.SAFE` data in `./data/SAFE/`, you can skip this step.
+
+```bash
+python /opt/scripts/download_data.py \
+  --start 2021-05-11 \
+  --end   2021-05-11 \
+  --aoi   /opt/data/aoi.geojson
+```
+
+### Step 2 — Run SNAP InSAR Graph
+
+Execute the InSAR processing graph using ESA SNAP's Graph Processing Tool (GPT). This step performs co-registration, interferogram formation, topographic phase removal, and filtering.
+
+**To measure execution time, you can prefix the command with `time`:**
+
+```bash
+time gpt /opt/graphs/insar_graph.xml \
+  -Pmaster=/opt/data/SAFE/S1A_IW_SLC__1SDV_20210511T173941_20210511T174008_037843_047769_9526.SAFE \
+  -Pslave=/opt/data/SAFE/S1A_IW_SLC__1SDV_20210530T173150_20210530T173217_038120_047FBA_A0C2.SAFE \
+  -Ptarget_product=/opt/data/out/insar_filtered.dim
+```
+
+**Important:** Replace the placeholder `.SAFE` paths with the actual paths to your master and slave Sentinel-1 data within the container (e.g., `/opt/data/SAFE/YOUR_MASTER_IMAGE.SAFE`).
+
+```bash
+gpt /opt/graphs/insar_graph.xml \
+  -Pmaster=/opt/data/SAFE/S1A_IW_SLC__1SDV_20210511T173941_20210511T174008_037843_047769_9526.SAFE \
+  -Pslave=/opt/data/SAFE/S1A_IW_SLC__1SDV_20210530T173150_20210530T173217_038120_047FBA_A0C2.SAFE \
+  -Ptarget_product=/opt/data/out/insar_filtered.dim
+```
+
+This command will take some time to complete, depending on your system resources and the size of the data.
+
+### Step 3 — Convert VRT → GeoTIFF
+
+```bash
+python /opt/scripts/convert_vrt_to_tif.py /opt/data/out
+```
+
+### Step 4 — Generate Report
+
+```bash
+python /opt/scripts/generate_report.py /opt/data/out
+```
+
+---
+
+
+
+---
+
+## 5.2 What is SNAP Graph Execution? (InSAR Processing for Beginners)
+
+The `insar_graph.xml` file used here defines a sequence of automated processing steps for Sentinel-1 radar data, executed by ESA SNAP's Graph Processing Tool (GPT). This process transforms raw satellite data into an interferogram, which can reveal millimeter-scale ground movements.
+
+Here's a simplified breakdown:
+
+1.  **Co-registration:**
+    *   **What:** Accurately aligns two satellite images taken at different times over the same area. Imagine precisely stacking two photos of the same landscape taken days apart.
+    *   **Why:** Essential for comparing the tiny phase differences between them to detect movement.
+2.  **Interferogram Formation:**
+    *   **What:** Creates an "interferogram" by measuring the phase difference (a property of radar waves) between the two co-registered images. This phase difference appears as a pattern of fringes (like contour lines).
+    *   **Why:** These fringes contain information about ground deformation and topography.
+3.  **Topographic Phase Removal:**
+    *   **What:** Removes the part of the phase difference caused by the shape of the terrain (mountains, valleys). We only want the phase related to ground movement.
+    *   **Why:** Isolates the phase changes directly caused by ground deformation, making them easier to observe.
+4.  **Phase Filtering (e.g., Goldstein Filter):**
+    *   **What:** Reduces noise in the interferogram, making the fringe patterns clearer and more interpretable.
+    *   **Why:** Improves the quality of the deformation signal and helps in unwrapping the phase later.
+5.  **Output (e.g., GeoTIFF):**
+    *   **What:** Saves the processed interferogram into a standard geospatial format.
+    *   **Why:** Allows for further analysis and visualization in GIS software.
+
+**Important Note on GPU Usage:**
+While this Docker environment is fully GPU-enabled, SNAP's core InSAR processing (including the `gpt` command with `insar_graph.xml`) is primarily **CPU-bound**. This means the GPU is not actively used during these specific InSAR steps. The GPU setup is crucial for **AI/Deep Learning workloads** (e.g., PyTorch, TensorFlow) and **Large Language Models (LLMs)** via tools like Ollama, which can leverage the GPU within this environment. This project demonstrates a versatile environment capable of both CPU-bound geospatial processing and GPU-accelerated AI tasks.
+
+```
+mini-insar-pipeline/
+│   docker-compose.yml
+│   Dockerfile
+│   README.md
+│
+├── scripts/
+│     download_data.py
+│     run_snap_graph.py
+│     convert_vrt_to_tif.py
+│     generate_report.py
+│     gpu_test.py
+│     gpu_test.py
+│
+├── graphs/
+│     insar_graph.xml
+│
+└── data/
+      SAFE/
+      out/
+```
+
+---
+
+# Validation & Expected Outputs
 
 After running the pipeline, you should find the following in the `mini-insar-pipeline/data/out/` directory:
 
@@ -139,30 +335,21 @@ After running the pipeline, you should find the following in the `mini-insar-pip
 *   If the interferogram is noisy (low coherence), try picking acquisition dates that are closer together.
 *   If outputs are empty or you encounter an error, check the SNAP GPT logs printed to the console. Common issues include incorrect `.SAFE` paths or a missing manifest file.
 
-## Troubleshooting
+---
+
+# 🔧 Troubleshooting
 
 For common issues and their resolutions, please refer to the [TROUBLESHOOTING.md](mini-insar-pipeline/TROUBLESHOOTING.md) file.
 
-## Code Licensing
+---
 
-This pipeline's code is provided as-is. If you intend to publish or distribute this code, it is highly recommended to choose and include an appropriate open-source license (e.g., MIT, Apache 2.0) in your repository. This clarifies how others can use, modify, and distribute your code.
-
-## Data Licensing
-
-The Sentinel-1 data downloaded via this pipeline is sourced from the Alaska Satellite Facility (ASF). While ASF data is generally publicly funded and available, specific usage policies, especially concerning commercial applications, can vary by dataset.
-
-**It is crucial for users to consult the End User License Agreements (EULAs) associated with each specific data collection to determine the exact commercial use policy and any other restrictions.**
-
-## Notes, Limitations, and Next Steps
-
-*   **SNAP / SNAPHU**: For full phase unwrapping, you would typically use `snaphu` (usually a separate installation) or SNAP’s Unwrapping operator. This may require extra packages and configuration.
-*   **SBAS / PS-InSAR**: This mini-pipeline handles a single interferogram (DInSAR). Time-series analysis (SBAS/PS) requires additional tooling (e.g., MintPy, StaMPS) and significantly more computation.
-*   **HPC Scaling**: For production use, the `gpt` call can be wrapped inside job arrays (e.g., SLURM) or scaled using services like AWS Batch / Fargate.
-*   **Performance**: SNAP processing is CPU and I/O intensive. It benefits from >8GB RAM and multiple cores. A local machine is sufficient for small Areas of Interest (AOIs), but larger-scale processing would require HPC resources. **By default, this pipeline is configured for CPU-based processing. However, it also supports GPU acceleration for compatible NVIDIA GPUs, which can significantly speed up certain processing steps. Enabling GPU support is an advanced, experimental feature. For large datasets, processing without a GPU can be time-consuming.**
-
-### Learning Points for HPC/Geospatial Roles
+# 🎓 Learning Points & Demonstrated Skills
 
 This project, especially the troubleshooting process, offers valuable insights for those interested in High-Performance Computing (HPC) or geospatial roles, directly aligning with skills sought in roles like a Cloud Infrastructure Engineer. It demonstrates practical experience in:
+
+*   **Modern Scientific Computing Approach (Reproducibility & GeoAI Integration)**:
+    *   **Demonstrated Skill**: This project exemplifies a modern approach to scientific computing by containerizing complex geospatial processing workflows (InSAR) within a Linux-based Docker environment. This strategy effectively resolves common path and dependency issues (e.g., with GDAL/PROJ) often encountered on Windows, ensuring cross-platform reproducibility and stability. Furthermore, by integrating GPU passthrough, the environment is not only robust for CPU-bound tasks like ESA SNAP's InSAR processing but also fully equipped for GPU-accelerated AI/ML workloads (e.g., PyTorch, Ollama). This dual capability showcases a best practice in GeoAI, where traditional geospatial analysis is seamlessly combined with cutting-edge AI, optimizing resource utilization and fostering innovation.
+    *   **Relevance to Roles**: Essential for roles in scientific computing, GeoAI development, and MLOps, demonstrating the ability to build reproducible, high-performance computing environments that bridge traditional scientific workflows with modern AI/ML capabilities.
 
 *   **Cloud Infrastructure & DevOps (AWS, Docker, IaC, GitHub Actions, Serverless, Kubernetes)**:
     *   **Demonstrated Skill**: Experience in defining and managing infrastructure (Docker containers, dependencies, resource allocation) through code (`Dockerfile`, `docker-compose.yml`). This ensures consistent and reproducible environments across different systems, a core principle of IaC. The iterative process of building, testing, and refining the Docker image reflects DevOps practices. Familiarity with containerization (Docker) and orchestration concepts (Kubernetes, AWS EKS) is also highlighted.
@@ -188,7 +375,9 @@ This project, especially the troubleshooting process, offers valuable insights f
     *   **Demonstrated Skill**: The proactive attitude to summarize acquired knowledge into clear documentation (`README.md`, `TROUBLESHOOTING.md`) for the benefit of other technical professionals and the community. This includes translating technical concepts for both general and technical audiences.
     *   **Relevance to Roles**: This skill is crucial for effectively conveying technical information to diverse audiences, contributing to knowledge sharing, user training, and overall project clarity.
 
-### Troubleshooting Experience from a Contributor
+---
+
+# Troubleshooting Experience from a Contributor
 
 When I first ran this pipeline, I encountered various errors and found it very challenging. Therefore, I would like to share what I learned: this debugging journey is a very normal, everyday process.
 
@@ -200,52 +389,66 @@ Tackling these problems is exactly what professional researchers and engineers d
 
 With each error I resolved, I felt I was steadily moving forward. This trial-and-error process is not a sign of failure. Rather, it is an essential and valuable experience in the field of actual scientific and technical computing. So, if you encounter errors, it is a sign that you are on the right track.
 
-## Advanced Configuration: GPU Acceleration (Experimental)
+---
 
-This pipeline is ready for GPU acceleration with compatible NVIDIA GPUs, which can significantly improve performance. By default, processing is CPU-based. Follow these steps to enable GPU support.
+# 📄 Licensing
 
-### 1. Host System Setup (for WSL2 Users)
+## Code Licensing
 
-If you are running Docker on Windows with a WSL2 backend, your host system must be configured to pass the GPU to Docker containers.
+This pipeline's code is provided as-is. If you intend to publish or distribute this code, it is highly recommended to choose and include an appropriate open-source license (e.g., MIT, Apache 2.0) in your repository. This clarifies how others can use, modify, and distribute your code.
 
-- **Follow the guide:** A detailed, step-by-step guide for setting up the NVIDIA Container Toolkit on WSL2 is available in this repository. Please follow it carefully:
-  - **[WSL2 GPU Setup Guide](./docs/WSL_GPU_SETUP.md)**
+## Data Licensing
 
-This involves installing the NVIDIA Container Toolkit in your WSL2 distribution and configuring the Docker daemon.
+The Sentinel-1 data downloaded via this pipeline is sourced from the Alaska Satellite Facility (ASF). While ASF data is generally publicly funded and available, specific usage policies, especially concerning commercial applications, can vary by dataset.
 
-### 2. Docker Configuration
+**It is crucial for users to consult the End User License Agreements (EULAs) associated with each specific data collection to determine the exact commercial use policy and any other restrictions.**
 
-The project is already configured to utilize the GPU.
+---
 
-- **`Dockerfile`**: The `Dockerfile` (`mini-insar-pipeline/Dockerfile`) uses an `nvidia/cuda` base image, which includes the necessary CUDA libraries. **No changes are needed.**
 
-- **`docker-compose.yml`**: The `docker-compose.yml` file (`mini-insar-pipeline/docker-compose.yml`) is configured to request GPU access using the `gpus: all` key. This is the modern and recommended way to assign GPUs.
 
-  ```yaml
-  services:
-    insar:
-      build: .
-      # ... other settings
-      gpus: all
-  ```
-  **No changes are needed if your file already looks like this.**
+---
 
-### 3. Build and Run
+# Troubleshooting Experience from a Contributor
 
-After ensuring your host system and configuration files are set up correctly, build and run the container.
+When I first ran this pipeline, I encountered various errors and found it very challenging. Therefore, I would like to share what I learned: this debugging journey is a very normal, everyday process.
 
-```bash
-cd mini-insar-pipeline
-docker-compose build
-docker-compose run --rm insar /bin/bash
-```
+Tackling these problems is exactly what professional researchers and engineers do daily. The errors I faced were the kind of issues they resolve every day.
 
-### 4. Verify GPU Access
+*   Simple input mistakes in file paths that are easy to overlook.
+*   Syntax issues in the graph XML file that required updates to match the software version.
+*   Insufficient disk space that needed cleanup.
 
-Once inside the container, you can verify that the GPU is accessible by running:
+With each error I resolved, I felt I was steadily moving forward. This trial-and-error process is not a sign of failure. Rather, it is an essential and valuable experience in the field of actual scientific and technical computing. So, if you encounter errors, it is a sign that you are on the right track.
 
-```bash
-nvidia-smi
-```
+---
 
-If successful, you will see the `nvidia-smi` output, showing your GPU and the CUDA version. If you see an error like `command not found` or `NVIDIA-SMI has failed`, please refer to the **GPU Not Detected** section in the [TROUBLESHOOTING.md](./mini-insar-pipeline/TROUBLESHOOTING.md) guide.
+# 📄 Licensing
+
+## Code Licensing
+
+This pipeline's code is provided as-is. If you intend to publish or distribute this code, it is highly recommended to choose and include an appropriate open-source license (e.g., MIT, Apache 2.0) in your repository. This clarifies how others can use, modify, and distribute your code.
+
+## Data Licensing
+
+The Sentinel-1 data downloaded via this pipeline is sourced from the Alaska Satellite Facility (ASF). While ASF data is generally publicly funded and available, specific usage policies, especially concerning commercial applications, can vary by dataset.
+
+**It is crucial for users to consult the End User License Agreements (EULAs) associated with each specific data collection to determine the exact commercial use policy and any other restrictions.**
+
+---
+
+# 📄 Future Extensions
+
+*   GPU‑accelerated filtering/unwrapping
+*   PyTorch‑based coherence cleaning
+*   Real‑time deformation dashboards
+*   Integration with OLLAMA LLM agents
+*   National-scale cloud deployment examples
+
+---
+
+# 📨 Contact / Notes
+
+This pipeline was built to demonstrate how an engineer can deliver **end‑to‑end SAR processing systems** alone—suitable for evaluation by national geospatial institutions.
+
+Feel free to adapt, extend, or integrate this into your own GeoAI stack.

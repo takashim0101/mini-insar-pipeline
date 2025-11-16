@@ -30,3 +30,6 @@ Thumbs.db
 # For example:
 # *.snap
 # *.log
+
+# GPU test script
+scripts/gpu_test.py

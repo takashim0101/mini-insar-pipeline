@@ -11,3 +11,5 @@ services:
       - EARTHDATA_PASSWORD=${EARTHDATA_PASSWORD}
     tty: true
     gpus: all
+    ports:
+      - "11434:11434"
