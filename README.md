@@ -8,6 +8,30 @@ A reproducible, Dockerized Mini InSAR Pipeline that:
 
 This is a minimum viable InSAR pipeline, intended to demonstrate phase-based displacement output.
 
+This project demonstrates how advanced SAR workflows can be implemented by a single engineer, making satellite-based deformation monitoring reproducible, automated, and ready for integration into national-scale geospatial systems.
+
+Although this pipeline was built end-to-end by one person for demonstration purposes, the architecture is intentionally modular, maintainable, and suited for team-based development and operational environments.
+
+# What this project demonstrates
+
+## 🟦 Full Pipeline Engineering (Single-person architecture)
+- End-to-end design of an operational InSAR pipeline
+- Automated data ingest → preprocessing → interferogram → phase → displacement output
+- Fully reproducible Dockerised environment
+
+## 🟦 GeoAI & SAR Processing
+- Sentinel-1 SAR handling, InSAR concepts, geospatial formats (GeoTIFF, VRT, GeoJSON)
+- Python-based workflow automation (SNAP, Snappy, custom tooling)
+- HPC-aware processing (I/O optimization, system resource tuning)
+
+## 🟦 Infrastructure & Systems Engineering
+- Containerization (Dockerfile, docker-compose)
+- Multi-language stack debugging (Python, Java, C-extensions, Linux)
+- Infrastructure as Code principles for scientific workflows
+
+## 🟦 Documentation & Knowledge Transfer
+- Clear troubleshooting guides, reproducible instructions, technical notes
+
 ## How to Run
 
 1.  **Set Earthdata Login Credentials**:
@@ -57,7 +81,7 @@ This is a minimum viable InSAR pipeline, intended to demonstrate phase-based dis
 3.  **Build and Run the Container**:
     **Important:** All `docker-compose` commands must be run from within the `mini-insar-pipeline` directory.
 
-    *   **Download ESA SNAP Installer**: Before building, you need to manually download the ESA SNAP 13.0.0 "All Toolboxes" **Linux 64-bit** installer (`.sh` file) from [https://step.esa.int/main/download/snap-download/](https://step.esa.int/main/download/snap-download/). Place this `.sh` file directly into the `mini-insar-pipeline` directory (the same directory as the `Dockerfile`). **Do NOT download the Windows installer (.exe) as it will not work within the Linux-based Docker container.**
+    *   **ESA SNAP Installer**: Due to issues with direct download of ESA SNAP 13.0.0, the `Dockerfile` is now configured to automatically download ESA SNAP 9.0.0 "All Toolboxes" **Linux 64-bit** installer (`.sh` file) from the official STEP website during the Docker image build process. Manual download and placement of the installer are no longer required.
 
     First, navigate to the correct directory:
     ```bash
@@ -133,17 +157,35 @@ The Sentinel-1 data downloaded via this pipeline is sourced from the Alaska Sate
 *   **SNAP / SNAPHU**: For full phase unwrapping, you would typically use `snaphu` (usually a separate installation) or SNAP’s Unwrapping operator. This may require extra packages and configuration.
 *   **SBAS / PS-InSAR**: This mini-pipeline handles a single interferogram (DInSAR). Time-series analysis (SBAS/PS) requires additional tooling (e.g., MintPy, StaMPS) and significantly more computation.
 *   **HPC Scaling**: For production use, the `gpt` call can be wrapped inside job arrays (e.g., SLURM) or scaled using services like AWS Batch / Fargate.
-*   **Performance**: SNAP processing is CPU and I/O intensive. It benefits from >8GB RAM and multiple cores. A local machine is sufficient for small Areas of Interest (AOIs), but larger-scale processing would require HPC resources. **Note that this pipeline is configured for CPU-only processing. While SNAP can utilize GPUs for certain operations, this setup does not require or configure GPU acceleration, which would add significant complexity.**
+*   **Performance**: SNAP processing is CPU and I/O intensive. It benefits from >8GB RAM and multiple cores. A local machine is sufficient for small Areas of Interest (AOIs), but larger-scale processing would require HPC resources. **Note that this pipeline is configured for CPU-only processing. While SNAP can utilize GPUs for certain operations, this setup does not require or configure GPU acceleration, which would add significant complexity. For large datasets, processing without a GPU can be significantly time-consuming.**
 
 ### Learning Points for HPC/Geospatial Roles
 
-This project, especially the troubleshooting process, offers valuable insights for those interested in High-Performance Computing (HPC) or geospatial roles:
+This project, especially the troubleshooting process, offers valuable insights for those interested in High-Performance Computing (HPC) or geospatial roles, directly aligning with skills sought in roles like a Cloud Infrastructure Engineer. It demonstrates practical experience in:
 
-*   **Resource Management (Disk I/O, CPU/RAM)**: Understanding how to manage computational resources, especially disk space and RAM, is fundamental. A common real-world problem is encountering I/O errors (`[Errno 5]`) due to full disk space, or processes being `Killed` due to insufficient RAM. This often happens with large virtual disks (WSL2/Docker) or memory-intensive scientific applications. Visual tools like **WinDirStat** are invaluable for diagnosing disk space. Learning to use system commands (e.g., `wsl --shutdown`, `Optimize-VHD` in PowerShell) to safely shrink virtual disks, and configuring Docker Desktop's memory allocation, are critical skills in any data-intensive environment.
-*   **Environment & Dependency Management (Docker, `Dockerfile`)**: Ensuring a consistent and reproducible environment across different systems (e.g., local machine vs. cloud cluster) is crucial. Dockerizing the pipeline helps manage complex dependencies like ESA SNAP.
-*   **Software Versioning & Compatibility (SNAP Graph XML)**: Software versions can introduce breaking changes (e.g., the `insar_graph.xml` syntax error). Debugging these compatibility issues and adapting configurations is a key skill.
-*   **Command-Line Proficiency**: Most HPC and geospatial processing tasks rely heavily on command-line tools (e.g., `docker-compose`, `gpt`, `python` scripts, `df`, `wmic`).
-*   **Troubleshooting Mindset**: The iterative process of identifying errors, hypothesizing causes, testing solutions, and documenting findings is central to any technical role.
+*   **Cloud Infrastructure & DevOps (AWS, Docker, IaC, GitHub Actions, Serverless, Kubernetes)**:
+    *   **Demonstrated Skill**: Experience in defining and managing infrastructure (Docker containers, dependencies, resource allocation) through code (`Dockerfile`, `docker-compose.yml`). This ensures consistent and reproducible environments across different systems, a core principle of IaC. The iterative process of building, testing, and refining the Docker image reflects DevOps practices. Familiarity with containerization (Docker) and orchestration concepts (Kubernetes, AWS EKS) is also highlighted.
+    *   **Relevance to Roles**: This skill is highly relevant to roles requiring expertise in cloud infrastructure, DevOps practices, and managing deployments in environments like AWS. It demonstrates experience with Infrastructure as Code (IaC) using tools like Docker and an understanding of cloud-based service architectures, including serverless and container orchestration (e.g., Kubernetes, AWS EKS).
+
+*   **Programming & Development (Python Scripting, Automation, Data Processing)**:
+    *   **Demonstrated Skill**: Automating complex scientific workflows (InSAR processing) using Python scripting and containerization. This involves software development practices that support data processing, scripting, and automation.
+    *   **Relevance to Roles**: This skill is crucial for roles involving software development, particularly in data processing, scripting, and automation, often utilizing languages like Python.
+
+*   **Geospatial Technology (Data Formats, Processing Workflows, GDAL, STAC)**:
+    *   **Demonstrated Skill**: Practical knowledge of InSAR workflows, ESA SNAP, and processing pipelines within a containerized environment. This involves handling specialized geospatial data and tools, including the use of GDAL for data conversion and understanding of metadata standards like STAC.
+    *   **Relevance to Roles**: This skill is essential for roles focused on geospatial data, including processing workflows, spatial analysis, and the delivery of essential geospatial products, often involving tools like GDAL and standards like STAC.
+
+*   **Resource Management & Optimization (Disk I/O, CPU/RAM, Docker Cleanup)**:
+    *   **Demonstrated Skill**: Understanding how to manage computational resources, especially disk space and RAM, is fundamental. Encountering and resolving `[Errno 5]` (I/O errors) due to full disk space, or processes being `Killed` due to insufficient RAM, highlights practical experience. This includes using tools like `wsl --shutdown`, `Optimize-VHD`, and crucially, `docker system prune -a` for reclaiming significant disk space (e.g., over 18GB after multiple build attempts).
+    *   **Relevance to Roles**: This skill is vital for roles involving cloud architecture, system administration, and performance optimization, where efficient resource management and problem-solving for performance issues are critical.
+
+*   **Problem-Solving & Troubleshooting Mindset**:
+    *   **Demonstrated Skill**: The iterative process of identifying errors (e.g., `404 Not Found` for SNAP installer, `gdal-config not found`, `Python configuration failed`), hypothesizing causes, testing solutions, and documenting findings is central to any technical role. This project involved debugging version mismatches, environmental inconsistencies, and dependency issues.
+    *   **Relevance to Roles**: This skill is fundamental for any technical role, emphasizing a practical, outcome-driven approach to identifying, diagnosing, and resolving complex technical challenges.
+
+*   **Communication and Documentation**:
+    *   **Demonstrated Skill**: The proactive attitude to summarize acquired knowledge into clear documentation (`README.md`, `TROUBLESHOOTING.md`) for the benefit of other technical professionals and the community. This includes translating technical concepts for both general and technical audiences.
+    *   **Relevance to Roles**: This skill is crucial for effectively conveying technical information to diverse audiences, contributing to knowledge sharing, user training, and overall project clarity.
 
 ### Troubleshooting Experience from a Contributor
 
@@ -156,3 +198,150 @@ Tackling these problems is exactly what professional researchers and engineers d
 *   Insufficient disk space that needed cleanup.
 
 With each error I resolved, I felt I was steadily moving forward. This trial-and-error process is not a sign of failure. Rather, it is an essential and valuable experience in the field of actual scientific and technical computing. So, if you encounter errors, it is a sign that you are on the right track.
+
+## Advanced Configuration: GPU Acceleration (Experimental)
+
+This pipeline is configured for CPU-only processing by default. While ESA SNAP can utilize GPUs for certain operations, enabling GPU acceleration adds significant complexity and is considered an advanced, experimental configuration for this project.
+
+If you wish to attempt GPU acceleration with your NVIDIA GPU, follow these general steps:
+
+1.  **Verify Host System Prerequisites:**
+    *   Ensure your NVIDIA GPU drivers are correctly installed on your host system (e.g., confirmed by `nvidia-smi` output).
+    *   Ensure Docker Desktop (or Docker Engine) is installed and running.
+
+2.  **Install NVIDIA Container Toolkit (inside WSL2 Ubuntu):**
+    Before installing the toolkit, it's good practice to upgrade your system's packages to their latest versions to ensure compatibility and stability.
+    ```bash
+    sudo apt update
+    sudo apt upgrade -y
+    ```
+    This toolkit allows Docker to access your host's NVIDIA GPUs. Run these commands inside your WSL2 Ubuntu terminal:
+    ```bash
+    sudo apt install -y curl gnupg software-properties-common
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor | sudo tee /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg > /dev/null
+    # Add the NVIDIA Container Toolkit repository
+    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+    sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    sudo apt update
+    sudo apt install -y nvidia-container-toolkit
+    ```
+    Then, configure Docker to use the NVIDIA runtime by editing `/etc/docker/daemon.json`:
+    ```bash
+    sudo nano /etc/docker/daemon.json
+    ```
+    Add/modify the content:
+    ```json
+    {
+        "default-runtime": "nvidia",
+        "runtimes": {
+            "nvidia": {
+                "path": "/usr/bin/nvidia-container-runtime",
+                "runtimeArgs": []
+            }
+        }
+    }
+    ```
+    Restart Docker (e.g., `sudo systemctl restart docker` or restart Docker Desktop).
+
+3.  **Modify `docker-compose.yml`:**
+    Add a `deploy` section to your `insar` service to specify GPU resources. Locate the `insar` service and add the following:
+    ```yaml
+        deploy:
+          resources:
+            reservations:
+              devices:
+                - driver: nvidia
+                  count: all # or 1
+                  capabilities: [gpu]
+    ```
+
+4.  **Modify `Dockerfile` (Advanced & SNAP-Specific):**
+    This step involves updating the `Dockerfile` to include CUDA support and a more robust SNAP installation process. The previous `Dockerfile` was based on `ubuntu:22.04` and manually copied the SNAP installer. The updated `Dockerfile` uses an `nvidia/cuda` base image and downloads SNAP directly.
+
+    Here is the updated `Dockerfile` content:
+
+    ```dockerfile
+    # Use a CUDA-enabled base image from NVIDIA for GPU acceleration.
+    FROM nvidia/cuda:11.8.0-base-ubuntu22.04
+
+    # Set environment variables for non-interactive installation and define SNAP_HOME.
+    ENV DEBIAN_FRONTEND=noninteractive
+    ENV SNAP_HOME=/opt/snap
+    # Add SNAP's binary directory to the PATH for easy access to tools like 'gpt'.
+    ENV PATH=$PATH:$SNAP_HOME/bin
+
+    # Install necessary system dependencies:
+    # - wget: To download the ESA SNAP installer.
+    # - unzip, tar: For extracting archives.
+    # - fontconfig: Addresses potential font-related issues in headless environments.
+    # - python3, python3-pip: For Snappy (SNAP's Python API) integration.
+    # - openjdk-11-jdk: ESA SNAP is a Java application, so a Java Development Kit is required.
+    RUN apt-get update && \
+        apt-get install -y --no-install-recommends \
+        wget \
+        unzip \
+        tar \
+        fontconfig \
+        python3 \
+        python3-pip \
+        openjdk-11-jdk \
+        && rm -rf /var/lib/apt/lists/*
+
+    # Download and install ESA SNAP 9.0.0:
+    # - WORKDIR /tmp: Change to a temporary directory for downloading.
+    # - wget ... -O: Download the ESA SNAP 9.0.0 installer for Unix.
+    # - chmod +x: Make the installer executable.
+    # - ./esa-snap... -q -dir $SNAP_HOME: Run the installer in quiet (silent) mode (-q)
+    #   and specify the installation directory (-dir).
+    # - rm: Clean up the installer file after installation.
+    WORKDIR /tmp
+    RUN wget https://download.esa.int/step/snap/9.0/installers/esa-snap_all_unix_9_0_0.sh -O esa-snap_all_unix_9_0_0.sh && \
+        chmod +x esa-snap_all_unix_9_0_0.sh && \
+        ./esa-snap_all_unix_9_0_0.sh -q -dir $SNAP_HOME && \
+        rm esa-snap_all_unix_9_0_0.sh
+
+    # Configure Snappy (SNAP's Python API integration):
+    # - mkdir -p: Create a directory for the Snappy module.
+    # - $SNAP_HOME/bin/snappy-conf: Run the Snappy configuration tool.
+    #   It links the specified Python interpreter (python3) with SNAP and generates
+    #   the 'snappy' module in the target directory.
+    # - echo ... >> /etc/bash.bashrc: Add the Snappy module's path to PYTHONPATH
+    #   so Python can find it. This makes it available for all users.
+    RUN mkdir -p $SNAP_HOME/snap-python && \
+        $SNAP_HOME/bin/snappy-conf python3 $SNAP_HOME/snap-python && \
+        echo "export PYTHONPATH=$PYTHONPATH:$SNAP_HOME/snap-python" >> /etc/bash.bashrc
+
+    # Update SNAP modules:
+    # This step ensures all installed SNAP modules are up-to-date.
+    # - --nosplash: Prevents the splash screen from appearing.
+    # - --nogui: Runs SNAP in headless mode without a graphical user interface.
+    # - --modules --update-all: Commands SNAP to update all available modules.
+    RUN $SNAP_HOME/bin/snap --nosplash --nogui --modules --update-all
+
+    # Set JAVA_HOME (assuming openjdk-11-jdk installs here)
+    ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+
+    # Install Python deps
+    COPY requirements.txt /tmp/requirements.txt
+    RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
+
+    # Copy project files
+    WORKDIR /opt/project
+    COPY . /opt/project
+    RUN chmod +x /opt/project/scripts/*.py
+
+    # Set the default command to /bin/bash for easy interaction with the container.
+    CMD ["/bin/bash"]
+    ```
+
+    **Note:** This `Dockerfile` now uses ESA SNAP 9.0.0 due to direct download issues with version 13.0.0. The installer is automatically downloaded during the Docker image build process.
+
+5.  **Rebuild and Run:**
+    After all modifications, rebuild your Docker image and run the container:
+    ```bash
+    cd mini-insar-pipeline
+    docker-compose build
+    docker-compose run --rm insar /bin/bash
+    ```
+    Verify GPU access inside the container by running `nvidia-smi`.

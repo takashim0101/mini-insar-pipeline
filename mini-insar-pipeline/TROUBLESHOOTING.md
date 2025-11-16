@@ -128,11 +128,12 @@ A comprehensive list of methods to free up disk space on your host machine:
 
 ### Docker Cleanup
 
-*   The `docker system prune -a` command is an effective but aggressive way to reclaim disk space by removing all stopped containers, unused networks, and dangling images.
-    *   **Real-World Example:** One user resolved an `[Errno 5]` error by running `docker system prune -a`, which successfully reclaimed over 10GB of disk space.
+*   The `docker system prune -a` command is an effective but aggressive way to reclaim disk space by removing all stopped containers, unused networks, and dangling images/build cache.
+    *   **Real-World Example:** A recent experience demonstrated that running `docker system prune -a` successfully reclaimed over 18GB of disk space after multiple build attempts, resolving `[Errno 5]` errors caused by insufficient disk space. This command is crucial for maintaining a clean Docker environment, especially during iterative development and debugging of containerized applications.
 *   For a less aggressive approach, you can use more targeted commands:
     *   `docker builder prune`: Safely removes only the build cache.
     *   `docker image prune`: Safely removes "dangling" images (images not tagged or used by any container).
+    *   `docker container prune`: Removes all stopped containers.
 
 ### Advanced Windows Cleanup (Use with Caution)
 
@@ -297,3 +298,75 @@ powercfg.exe /hibernate off
           </node>
         ```
 5.  **Re-run the pipeline**: After saving the modified `insar_graph.xml`, re-run the `run_gpt.py` script inside the Docker container.
+
+## 11. SNAP Installer Download Fails with "404 Not Found"
+
+**Problem:** During the Docker image build, the `wget` command for the ESA SNAP installer fails with an "ERROR 404: Not Found" message.
+
+**Cause:** The direct download URL for ESA SNAP installers, especially for newer versions like 13.0.0, can change or become unavailable. The `Dockerfile` was initially configured to download SNAP 13.0.0, but its direct download link was found to be unreliable.
+
+**Resolution:** The `Dockerfile` has been updated to use ESA SNAP version 9.0.0, which has a stable direct download link.
+
+1.  **Verify `Dockerfile`:** Ensure your `Dockerfile` (located in `mini-insar-pipeline/Dockerfile`) contains the updated `wget` command for SNAP 9.0.0:
+    ```dockerfile
+    RUN wget https://download.esa.int/step/snap/9.0/installers/esa-snap_all_unix_9_0_0.sh -O esa-snap_all_unix_9_0_0.sh && \
+        chmod +x esa-snap_all_unix_9_0_0.sh && \
+        ./esa-snap_all_unix_9_0_0.sh -q -dir $SNAP_HOME && \
+        rm esa-snap_all_unix_9_0_0.sh
+    ```
+2.  **Rebuild Docker Image:** After confirming the `Dockerfile` is updated, rebuild your Docker image:
+    ```bash
+    cd mini-insar-pipeline
+    docker-compose build
+    ```
+
+## 12. Snappy Configuration Fails (Python interpreter compatibility or jpy build error)
+
+**Problem:** When running `snappy-conf` inside the Docker container, you encounter errors such as:
+*   `Python interpreter executable not found: python3` (even if `which python3` returns a path)
+*   `Python configuration failed. Command [...] failed with return code 10.`
+*   The `snappyutil.log` shows: `ERROR: The module 'jpy' is required to run snappy, but no binary 'jpy' wheel matching the pattern 'jpy-{version}-cp310-{abi_tag}-linux_x86_64.whl' could be found.`
+*   Attempting to build `jpy` from source (e.g., `python3 setup.py bdist_wheel`) results in compilation errors like `error: lvalue required as left operand of assignment` related to `Py_REFCNT`.
+
+**Cause:**
+*   SNAP 9.0.0's `snappy` module has known compatibility issues with newer Python versions (e.g., Python 3.10, which is default on Ubuntu 22.04). The `jpy` bridge, which `snappy` relies on, uses deprecated Python C API calls that cause compilation failures with Python 3.10.
+*   The `deadsnakes` PPA, while useful for installing multiple Python versions, does not provide Python 3.6 for Ubuntu 22.04 (Jammy) due to `libssl` dependencies.
+
+**Resolution:**
+
+The most robust solution is to use a Docker base image that natively supports a Python version compatible with SNAP 9.0.0's `snappy` module, such as Python 3.6.
+
+1.  **Modify `Dockerfile` to use an Ubuntu 18.04 base image:**
+    *   Change the `FROM` line in your `Dockerfile` from `nvidia/cuda:11.8.0-base-ubuntu22.04` to `nvidia/cuda:11.8.0-base-ubuntu18.04`. Ubuntu 18.04 (Bionic) typically includes Python 3.6 as its default `python3`.
+    *   Remove any steps related to adding the `deadsnakes` PPA or explicitly installing `python3.6` via `apt-get install python3.6`.
+    *   Ensure `python3-dev` and `build-essential` are installed for the new base image.
+
+2.  **Clean Docker System:**
+    *   After modifying the `Dockerfile`, it's crucial to clean up old Docker images and build cache to ensure a fresh build.
+        ```bash
+        docker system prune -a
+        ```
+
+3.  **Rebuild Docker Image:**
+    *   Rebuild the Docker image with the updated `Dockerfile`.
+        ```bash
+        docker-compose build
+        ```
+
+4.  **Run Container Interactively:**
+    *   Run the container interactively to attempt `snappy-conf` again.
+        ```bash
+        docker-compose run --rm insar /bin/bash
+        ```
+
+5.  **Re-run `snappy-conf`:**
+    *   Inside the container, execute `snappy-conf` using the default `python3` (which should now be Python 3.6).
+        ```bash
+        /opt/snap/bin/snappy-conf python3 /opt/snap/snap-python
+        ```
+
+6.  **Check `snappyutil.log` for Success:**
+    *   After running `snappy-conf`, check the log file. If successful, it should indicate a successful configuration.
+        ```bash
+        cat /opt/snap/snap-python/snappy/snappyutil.log
+        ```

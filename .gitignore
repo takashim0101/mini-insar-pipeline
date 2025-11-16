@@ -1,5 +1,6 @@
 # Environment variables
 .env
+wsl_setting.txt
 
 # OS-specific files
 .DS_Store

@@ -10,3 +10,10 @@ services:
       - EARTHDATA_USERNAME=${EARTHDATA_USERNAME}
       - EARTHDATA_PASSWORD=${EARTHDATA_PASSWORD}
     tty: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all # or 1
+              capabilities: [gpu]
