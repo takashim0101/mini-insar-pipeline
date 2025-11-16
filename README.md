@@ -77,7 +77,7 @@ In the current graph, processing stops at Interferogram and Filtering. Phase unw
 
 **Options:**
 *   Build and connect SNAPHU within Docker (possible with a few lines added to Dockerfile).
-*   SNAP's SNAPHU-Export functionを利用し、SNAPHUを実行後、結果をインポートする（スクリプト化可能）。
+*   Utilize SNAP's SNAPHU-Export function, execute SNAPHU, and then import the results (scriptable).
 
 ### 🥉 Step 3 — Convert to LOS Displacement (Phase → Displacement)
 
