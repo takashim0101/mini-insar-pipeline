@@ -40,28 +40,28 @@ Supports GPU execution where possible, enabling:
 
 ---
 
-# 🎯 Project Status & Next Steps (現在の進捗と次のステップ)
+# 🎯 Project Status & Next Steps
 
-現在のプロジェクトの進捗状況と、次に進むべきステップを整理します。
+This section organizes the current project progress and the next steps to take.
 
-## ✔ 現在の進捗
+## ✔ Current Progress
 
-*   **GPU テスト成功**: `gpu_test.py` を使用したGPUテストは成功し、Dockerコンテナ内でのGPUアクセスが確認済みです。
-*   **GPT Graph 本番処理成功**: Master / Slave / Target Product が正しく動作し、干渉画像生成（Interferogram）とフィルタリング（Goldstein filtering）まで完了しました。
-*   **Docker + SNAP + GPU + ASFデータ連携成功**: これが最大の難関でしたが、Docker環境、ESA SNAP、GPUパススルー、ASFデータ連携がすべて正常に機能しています。
+*   **GPU Test Successful**: GPU testing using `gpu_test.py` was successful, confirming GPU access within the Docker container.
+*   **GPT Graph Production Processing Successful**: Master / Slave / Target Product are working correctly, and interferogram generation and Goldstein filtering have been completed.
+*   **Docker + SNAP + GPU + ASF Data Integration Successful**: This was the biggest challenge, but the Docker environment, ESA SNAP, GPU passthrough, and ASF data integration are all functioning normally.
 
-**🔥 つまり、InSARパイプラインの約50%が完了した地点にいます。**
-干渉画像（Interferogram）とフィルタリング（Goldstein filtering）が終了した段階です。
+**🔥 In short, we are at the point where approximately 50% of the InSAR pipeline is complete.**
+This is the stage where interferogram and Goldstein filtering have finished.
 
-## 📌 次にやるべき作業（優先順位順）
+## 📌 Next Tasks (in order of priority)
 
-現在のフォルダ構成と進捗に基づき、次に進むべきステップは以下の通りです。
+Based on the current folder structure and progress, the next steps are as follows:
 
-### 🥇 Step 1 — `run_gpt.py` を完成させる（今やるべき最重要ポイント）
+### 🥇 Step 1 — Complete `run_gpt.py` (Most important point to do now)
 
-現在、`scripts/run_gpt.py` を完成させ、InSARパイプラインをCLIから完全に自動化することを目指します。Master/Slaveのパス、Graph Path、出力パスをPythonスクリプトで渡せるようにします。
+Currently, the goal is to complete `scripts/run_gpt.py` to fully automate the InSAR pipeline from the CLI. This involves passing Master/Slave paths, Graph Path, and output paths via a Python script.
 
-**例:**
+**Example:**
 ```bash
 python scripts/run_gpt.py \
   --master /opt/data/...SAFE \
@@ -69,35 +69,35 @@ python scripts/run_gpt.py \
   --graph graphs/insar_graph.xml \
   --output /opt/data/out
 ```
-これにより、パイプラインが「完全自動処理」になります。
+This will make the pipeline "fully automated processing."
 
-### 🥈 Step 2 — SNAPHUによる位相アンラップ（Unwrapping）
+### 🥈 Step 2 — Phase Unwrapping with SNAPHU
 
-現在のグラフでは、処理はInterferogramとFilteringで止まっています。変位を算出するためには、位相アンラップが必要です。
+In the current graph, processing stops at Interferogram and Filtering. Phase unwrapping is necessary to calculate displacement.
 
-**オプション:**
-*   Docker内でSNAPHUをビルドして接続する（Dockerfileに数行追加で可能）。
-*   SNAPのSNAPHU-Export機能を利用し、SNAPHUを実行後、結果をインポートする（スクリプト化可能）。
+**Options:**
+*   Build and connect SNAPHU within Docker (possible with a few lines added to Dockerfile).
+*   SNAP's SNAPHU-Export functionを利用し、SNAPHUを実行後、結果をインポートする（スクリプト化可能）。
 
-### 🥉 Step 3 — LOS変位に変換（Phase → Displacement）
+### 🥉 Step 3 — Convert to LOS Displacement (Phase → Displacement)
 
-SNAPHUでアンラップされた位相データから、以下の計算式で変位量（ミリメートル単位）を算出します。
+From the phase data unwrapped by SNAPHU, calculate the displacement (in millimeters) using the following formula:
 `unwrapped_phase × (λ / 4π)`
-これはPython（NumPyなど）で簡単に自動化できます。
+This can be easily automated with Python (e.g., NumPy).
 
-### 🏅 Step 4 — GeoTIFF 生成（`convert_vrt_to_tif.py`の活用）
+### 🏅 Step 4 — Generate GeoTIFF (`convert_vrt_to_tif.py` utilization)
 
-`scripts/convert_vrt_to_tif.py` は、DIM → VRT → GeoTIFFへの後処理用スクリプトです。InSARの最終成果物としてGeoTIFF形式が望ましいため、このステップまでパイプラインを接続します。
+`scripts/convert_vrt_to_tif.py` is a post-processing script for DIM → VRT → GeoTIFF. Since GeoTIFF format is desirable as the final output of InSAR, this step will connect to the pipeline.
 
-### 🎖️ Step 5 — `generate_report.py` で自動レポート生成（任意）
+### 🎖️ Step 5 — Automatic Report Generation with `generate_report.py` (Optional)
 
-PDFまたはMarkdown形式での自動レポート生成が可能な構成です。
-**理想のレポート内容:**
-*   入力ペア情報
-*   ベースライン (bperp)
-*   コヒーレンスマップ
-*   変位マップ
-*   可視化図
+This configuration allows for automatic report generation in PDF or Markdown format.
+**Ideal report content:**
+*   Input pair information
+*   Baseline (bperp)
+*   Coherence map
+*   Displacement map
+*   Visualization diagrams
 
 ---
 
