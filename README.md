@@ -31,6 +31,7 @@ Although this pipeline was built end-to-end by one person for demonstration purp
 
 ## 🟦 Documentation & Knowledge Transfer
 - Clear troubleshooting guides, reproducible instructions, technical notes
+- [HPC Support Case Study (English)](./mini-insar-pipeline/HPC_SUPPORT_CASE_STUDY_EN.md)
 
 ## How to Run
 
@@ -157,7 +158,7 @@ The Sentinel-1 data downloaded via this pipeline is sourced from the Alaska Sate
 *   **SNAP / SNAPHU**: For full phase unwrapping, you would typically use `snaphu` (usually a separate installation) or SNAP’s Unwrapping operator. This may require extra packages and configuration.
 *   **SBAS / PS-InSAR**: This mini-pipeline handles a single interferogram (DInSAR). Time-series analysis (SBAS/PS) requires additional tooling (e.g., MintPy, StaMPS) and significantly more computation.
 *   **HPC Scaling**: For production use, the `gpt` call can be wrapped inside job arrays (e.g., SLURM) or scaled using services like AWS Batch / Fargate.
-*   **Performance**: SNAP processing is CPU and I/O intensive. It benefits from >8GB RAM and multiple cores. A local machine is sufficient for small Areas of Interest (AOIs), but larger-scale processing would require HPC resources. **Note that this pipeline is configured for CPU-only processing. While SNAP can utilize GPUs for certain operations, this setup does not require or configure GPU acceleration, which would add significant complexity. For large datasets, processing without a GPU can be significantly time-consuming.**
+*   **Performance**: SNAP processing is CPU and I/O intensive. It benefits from >8GB RAM and multiple cores. A local machine is sufficient for small Areas of Interest (AOIs), but larger-scale processing would require HPC resources. **By default, this pipeline is configured for CPU-based processing. However, it also supports GPU acceleration for compatible NVIDIA GPUs, which can significantly speed up certain processing steps. Enabling GPU support is an advanced, experimental feature. For large datasets, processing without a GPU can be time-consuming.**
 
 ### Learning Points for HPC/Geospatial Roles
 
@@ -201,147 +202,50 @@ With each error I resolved, I felt I was steadily moving forward. This trial-and
 
 ## Advanced Configuration: GPU Acceleration (Experimental)
 
-This pipeline is configured for CPU-only processing by default. While ESA SNAP can utilize GPUs for certain operations, enabling GPU acceleration adds significant complexity and is considered an advanced, experimental configuration for this project.
+This pipeline is ready for GPU acceleration with compatible NVIDIA GPUs, which can significantly improve performance. By default, processing is CPU-based. Follow these steps to enable GPU support.
 
-If you wish to attempt GPU acceleration with your NVIDIA GPU, follow these general steps:
+### 1. Host System Setup (for WSL2 Users)
 
-1.  **Verify Host System Prerequisites:**
-    *   Ensure your NVIDIA GPU drivers are correctly installed on your host system (e.g., confirmed by `nvidia-smi` output).
-    *   Ensure Docker Desktop (or Docker Engine) is installed and running.
+If you are running Docker on Windows with a WSL2 backend, your host system must be configured to pass the GPU to Docker containers.
 
-2.  **Install NVIDIA Container Toolkit (inside WSL2 Ubuntu):**
-    Before installing the toolkit, it's good practice to upgrade your system's packages to their latest versions to ensure compatibility and stability.
-    ```bash
-    sudo apt update
-    sudo apt upgrade -y
-    ```
-    This toolkit allows Docker to access your host's NVIDIA GPUs. Run these commands inside your WSL2 Ubuntu terminal:
-    ```bash
-    sudo apt install -y curl gnupg software-properties-common
-    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor | sudo tee /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg > /dev/null
-    # Add the NVIDIA Container Toolkit repository
-    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-    sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-    sudo apt update
-    sudo apt install -y nvidia-container-toolkit
-    ```
-    Then, configure Docker to use the NVIDIA runtime by editing `/etc/docker/daemon.json`:
-    ```bash
-    sudo nano /etc/docker/daemon.json
-    ```
-    Add/modify the content:
-    ```json
-    {
-        "default-runtime": "nvidia",
-        "runtimes": {
-            "nvidia": {
-                "path": "/usr/bin/nvidia-container-runtime",
-                "runtimeArgs": []
-            }
-        }
-    }
-    ```
-    Restart Docker (e.g., `sudo systemctl restart docker` or restart Docker Desktop).
+- **Follow the guide:** A detailed, step-by-step guide for setting up the NVIDIA Container Toolkit on WSL2 is available in this repository. Please follow it carefully:
+  - **[WSL2 GPU Setup Guide](./docs/WSL_GPU_SETUP.md)**
 
-3.  **Modify `docker-compose.yml`:**
-    Add a `deploy` section to your `insar` service to specify GPU resources. Locate the `insar` service and add the following:
-    ```yaml
-        deploy:
-          resources:
-            reservations:
-              devices:
-                - driver: nvidia
-                  count: all # or 1
-                  capabilities: [gpu]
-    ```
+This involves installing the NVIDIA Container Toolkit in your WSL2 distribution and configuring the Docker daemon.
 
-4.  **Modify `Dockerfile` (Advanced & SNAP-Specific):**
-    This step involves updating the `Dockerfile` to include CUDA support and a more robust SNAP installation process. The previous `Dockerfile` was based on `ubuntu:22.04` and manually copied the SNAP installer. The updated `Dockerfile` uses an `nvidia/cuda` base image and downloads SNAP directly.
+### 2. Docker Configuration
 
-    Here is the updated `Dockerfile` content:
+The project is already configured to utilize the GPU.
 
-    ```dockerfile
-    # Use a CUDA-enabled base image from NVIDIA for GPU acceleration.
-    FROM nvidia/cuda:11.8.0-base-ubuntu22.04
+- **`Dockerfile`**: The `Dockerfile` (`mini-insar-pipeline/Dockerfile`) uses an `nvidia/cuda` base image, which includes the necessary CUDA libraries. **No changes are needed.**
 
-    # Set environment variables for non-interactive installation and define SNAP_HOME.
-    ENV DEBIAN_FRONTEND=noninteractive
-    ENV SNAP_HOME=/opt/snap
-    # Add SNAP's binary directory to the PATH for easy access to tools like 'gpt'.
-    ENV PATH=$PATH:$SNAP_HOME/bin
+- **`docker-compose.yml`**: The `docker-compose.yml` file (`mini-insar-pipeline/docker-compose.yml`) is configured to request GPU access using the `gpus: all` key. This is the modern and recommended way to assign GPUs.
 
-    # Install necessary system dependencies:
-    # - wget: To download the ESA SNAP installer.
-    # - unzip, tar: For extracting archives.
-    # - fontconfig: Addresses potential font-related issues in headless environments.
-    # - python3, python3-pip: For Snappy (SNAP's Python API) integration.
-    # - openjdk-11-jdk: ESA SNAP is a Java application, so a Java Development Kit is required.
-    RUN apt-get update && \
-        apt-get install -y --no-install-recommends \
-        wget \
-        unzip \
-        tar \
-        fontconfig \
-        python3 \
-        python3-pip \
-        openjdk-11-jdk \
-        && rm -rf /var/lib/apt/lists/*
+  ```yaml
+  services:
+    insar:
+      build: .
+      # ... other settings
+      gpus: all
+  ```
+  **No changes are needed if your file already looks like this.**
 
-    # Download and install ESA SNAP 9.0.0:
-    # - WORKDIR /tmp: Change to a temporary directory for downloading.
-    # - wget ... -O: Download the ESA SNAP 9.0.0 installer for Unix.
-    # - chmod +x: Make the installer executable.
-    # - ./esa-snap... -q -dir $SNAP_HOME: Run the installer in quiet (silent) mode (-q)
-    #   and specify the installation directory (-dir).
-    # - rm: Clean up the installer file after installation.
-    WORKDIR /tmp
-    RUN wget https://download.esa.int/step/snap/9.0/installers/esa-snap_all_unix_9_0_0.sh -O esa-snap_all_unix_9_0_0.sh && \
-        chmod +x esa-snap_all_unix_9_0_0.sh && \
-        ./esa-snap_all_unix_9_0_0.sh -q -dir $SNAP_HOME && \
-        rm esa-snap_all_unix_9_0_0.sh
+### 3. Build and Run
 
-    # Configure Snappy (SNAP's Python API integration):
-    # - mkdir -p: Create a directory for the Snappy module.
-    # - $SNAP_HOME/bin/snappy-conf: Run the Snappy configuration tool.
-    #   It links the specified Python interpreter (python3) with SNAP and generates
-    #   the 'snappy' module in the target directory.
-    # - echo ... >> /etc/bash.bashrc: Add the Snappy module's path to PYTHONPATH
-    #   so Python can find it. This makes it available for all users.
-    RUN mkdir -p $SNAP_HOME/snap-python && \
-        $SNAP_HOME/bin/snappy-conf python3 $SNAP_HOME/snap-python && \
-        echo "export PYTHONPATH=$PYTHONPATH:$SNAP_HOME/snap-python" >> /etc/bash.bashrc
+After ensuring your host system and configuration files are set up correctly, build and run the container.
 
-    # Update SNAP modules:
-    # This step ensures all installed SNAP modules are up-to-date.
-    # - --nosplash: Prevents the splash screen from appearing.
-    # - --nogui: Runs SNAP in headless mode without a graphical user interface.
-    # - --modules --update-all: Commands SNAP to update all available modules.
-    RUN $SNAP_HOME/bin/snap --nosplash --nogui --modules --update-all
+```bash
+cd mini-insar-pipeline
+docker-compose build
+docker-compose run --rm insar /bin/bash
+```
 
-    # Set JAVA_HOME (assuming openjdk-11-jdk installs here)
-    ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+### 4. Verify GPU Access
 
-    # Install Python deps
-    COPY requirements.txt /tmp/requirements.txt
-    RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
+Once inside the container, you can verify that the GPU is accessible by running:
 
-    # Copy project files
-    WORKDIR /opt/project
-    COPY . /opt/project
-    RUN chmod +x /opt/project/scripts/*.py
+```bash
+nvidia-smi
+```
 
-    # Set the default command to /bin/bash for easy interaction with the container.
-    CMD ["/bin/bash"]
-    ```
-
-    **Note:** This `Dockerfile` now uses ESA SNAP 9.0.0 due to direct download issues with version 13.0.0. The installer is automatically downloaded during the Docker image build process.
-
-5.  **Rebuild and Run:**
-    After all modifications, rebuild your Docker image and run the container:
-    ```bash
-    cd mini-insar-pipeline
-    docker-compose build
-    docker-compose run --rm insar /bin/bash
-    ```
-    Verify GPU access inside the container by running `nvidia-smi`.
+If successful, you will see the `nvidia-smi` output, showing your GPU and the CUDA version. If you see an error like `command not found` or `NVIDIA-SMI has failed`, please refer to the **GPU Not Detected** section in the [TROUBLESHOOTING.md](./mini-insar-pipeline/TROUBLESHOOTING.md) guide.

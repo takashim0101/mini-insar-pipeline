@@ -17,15 +17,12 @@ This document outlines common issues encountered during the setup and execution 
     *   Ensure the "Alaska Satellite Facility Data Access" application is authorized in your [Earthdata Login profile](https://urs.earthdata.nasa.gov/profile) under "Approved Applications".
 3.  **Environment Variable Setup:**
     *   Ensure `EARTHDATA_USERNAME` and `EARTHDATA_PASSWORD` are correctly set as environment variables in your host shell *before* running `docker-compose`.
-    *   Alternatively, place a `.env` file in the `mini-insar-pipeline` directory with `EARTHDATA_USERNAME=your_username` and `EARTHDATA_PASSWORD=your_password`.
-4.  **`.env` File Parsing:**
-    *   **Do NOT use double quotes** around the values in the `.env` file (e.g., `EARTHDATA_USERNAME=your_username`, not `EARTHDATA_USERNAME="your_username"`), as `docker-compose` may fail to parse them.
-5.  **Password Special Characters:**
+4.  **Password Special Characters:**
     *   If your Earthdata password contains special characters (e.g., `!`), it might cause issues with `asf-search` or the underlying environment. While ASF requires a special character, consider temporarily changing your password to use a less problematic one (e.g., `@` or `#` instead of `!`) if the issue persists.
-6.  **Network Connectivity (from within Docker):**
+5.  **Network Connectivity (from within Docker):**
     *   Verify that the Docker container has internet access and can reach Earthdata's URS and ASF's API endpoints.
     *   Inside the container, run: `curl -v https://urs.earthdata.nasa.gov/` and `curl -v https://api.daac.asf.alaska.edu/`. Both should return `HTTP/1.1 200 OK`.
-7.  **`asf-search` Debugging:**
+6.  **`asf-search` Debugging:**
     *   If the error persists, run `asf-search` authentication directly in a Python interpreter inside the container with debug logging enabled to get more detailed error messages.
 
 ## 2. `KeyError: 'features'` when parsing `aoi.geojson`
@@ -370,3 +367,38 @@ The most robust solution is to use a Docker base image that natively supports a 
         ```bash
         cat /opt/snap/snap-python/snappy/snappyutil.log
         ```
+
+## 13. GPU Not Detected or Used in Docker
+
+**Problem:** You have an NVIDIA GPU and have configured the project for GPU acceleration, but the container does not seem to use it. Running `nvidia-smi` inside the container shows `command not found` or `NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver.`
+
+**Cause:** This issue typically has two main causes:
+1.  The Docker Compose configuration is not correctly requesting the GPU.
+2.  The host machine (especially a WSL2 environment) is not correctly configured to pass the GPU through to Docker containers.
+
+**Resolution:**
+
+1.  **Check `docker-compose.yml`:**
+    *   Open `mini-insar-pipeline/docker-compose.yml`.
+    *   Verify that the `insar` service has the `gpus: all` key. This is the correct, modern way to request GPU access.
+        ```yaml
+        services:
+          insar:
+            build: .
+            # ... other settings
+            gpus: all
+        ```
+    *   If this key is missing or commented out, add it and rebuild the container (`docker-compose build`).
+
+2.  **Verify Host Setup (Especially for WSL2):**
+    *   For GPU support to work with Docker Desktop on Windows, your WSL2 environment needs the **NVIDIA Container Toolkit**.
+    *   A detailed guide is provided in this repository. Please ensure you have followed all the steps, especially running `nvidia-ctk runtime configure` and restarting Docker.
+    *   **See the guide:** [WSL2 GPU Setup Guide](../docs/WSL_GPU_SETUP.md)
+
+3.  **Final Verification:**
+    *   After confirming both configurations above, run the container:
+        ```bash
+        cd mini-insar-pipeline
+        docker-compose run --rm insar /bin/bash
+        ```
+    *   Inside the container, test again with `nvidia-smi`. If it now shows your GPU details, the connection is successful.
