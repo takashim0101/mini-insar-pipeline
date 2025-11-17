@@ -156,9 +156,9 @@ Other advanced methods to free up space on Windows:
 **Cause:** This is a Python syntax error caused by incorrect indentation in the script. It likely occurred during a copy-paste operation when adding new code, such as the unzipping logic.
 
 **Resolution:** The script must be corrected to have valid Python indentation. This involves:
-1.  Ensuring that `import` statements are at the top of the file with no leading whitespace.
-2.  Ensuring that all code blocks (e.g., inside `try...except` blocks, `for` loops, and functions) are indented consistently (e.g., with 4 spaces per level).
-3.  The script was corrected to fix the indentation of the download and unzip logic.
+11.  Ensuring that `import` statements are at the top of the file with no leading whitespace.
+12.  Ensuring that all code blocks (e.g., inside `try...except` blocks, `for` loops, and functions) are indented consistently (e.g., with 4 spaces per level).
+13.  The script was corrected to fix the indentation of the download and unzip logic.
 
 ## 8. Killed message during processing (Out of Memory)
 
@@ -176,7 +176,7 @@ Other advanced methods to free up space on Windows:
 
 2.  **Increase Docker Desktop Memory Allocation:**
     *   If you are using Docker Desktop (Windows/macOS), you can increase the amount of RAM allocated to the Docker Engine. Go to Docker Desktop **Settings -> Resources -> Advanced**, and increase the "Memory" slider. InSAR processing can benefit from 8GB or more, with 16GB or more recommended for this pipeline.
-    *   **For Windows/WSL2 Users:** If you are running Docker Desktop on Windows with the WSL2 backend, you can configure WSL2's memory allocation by creating or editing a `.wslconfig` file in your Windows user profile directory (`%USERPROFILE%`, typically `C:\Users\<YourUsername>\`). Add the following content (adjust `memory` and `processors` based on your system's resources):
+    *   **For Windows/WSL2 Users:** If you are running Docker Desktop on Windows with the WSL2 backend, you can configure WSL2's memory allocation by creating or editing a `.wslconfig` file in your Windows user profile directory (`%USERPROFILE%`, typically `C:\Users\<YourUsername>`). Add the following content (adjust `memory` and `processors` based on your system's resources):
         ```ini
         [wsl2]
         memory=16GB       # Allocate 16GB of RAM to WSL2
@@ -435,38 +435,36 @@ When the pipeline runs successfully, you might see log messages similar to these
 
 ### Log Interpretation:
 
-**1. SRTM DEM のダウンロード完了**
+**1. SRTM DEM Download Complete**
 ```
 xdata/dem/SRTMGL1/S45E172.SRTMGL1.hgt.zip
 ....10%....20%....90% done.
 ```
-→ この地区 (S45E172) のDEMが正しく落ちてきています。
+→ This indicates that the DEM for this area (S45E172) has been downloaded correctly.
 
-**2. SNAP（GAMMA バックエンド含む）が jBLAS をロードしてクリーンアップ**
+**2. SNAP (including GAMMA backend) loads and cleans up jBLAS**
 ```
 org.jblas INFO Deleting /tmp/jblas...
 ```
-→ SNAP の InSAR オペレーションでは内部で Java + jBLAS（線形代数）を使うため、
-テンポラリにライブラリを展開し、処理後に削除します。
-これは **完全に正常** です。(異常の場合はここでエラーが出ます)
+→ SNAP's InSAR operations internally use Java + jBLAS (linear algebra), so it temporarily extracts libraries and deletes them after processing. This is **completely normal**. (If there's an issue, an error will appear here.)
 
-**3. プロンプトが帰ってきた**
+**3. Prompt returns**
 ```
 root@4bde7702323:/opt/project#
 ```
-→ つまり **前のコマンドはすべて成功した** ということです。
+→ This means that **all previous commands were successful**.
 
 ### Next Steps:
 
-あなたが次に行うべきは **パイプラインの次のステップのコマンドを実行** することです。
+What you should do next is **execute the command for the next step in the pipeline**.
 
-もし Mini InSAR Pipeline v2 を使っているなら：
+If you are using Mini InSAR Pipeline v2:
 
-▶️ **Full example run（続き）**
+▶️ **Full example run (continuation)**
 
-1.  **データダウンロード（もう完了）**
+1.  **Data Download (already completed)**
 
-2.  **コレジストレーション & インターフェログラム生成**
+2.  **Coregistration & Interferogram Generation**
     ```bash
     python /opt/scripts/run_gpt.py /opt/graphs/insar_graph.xml \
         --in1 /opt/data/SAFE/S1A_XXXX.SAFE \
@@ -474,135 +472,152 @@ root@4bde7702323:/opt/project#
         --out /opt/data/out
     ```
 
-3.  **VRT → GeoTIFF 変換**
+3.  **VRT → GeoTIFF Conversion**
     ```bash
     python /opt/scripts/convert_vrt_to_tif.py /opt/data/out
     ```
 
-4.  **レポート生成（干渉縞のプレビュー付き）**
+4.  **Report Generation (with interferogram preview)**
     ```bash
     python /opt/scripts/generate_report.py /opt/data/out
     ```
 
 ### Judging Pipeline Completion:
 
-✅ **このログが意味していること**
+✅ **What this log means:**
 
-あなたが貼った部分は：
+The part you pasted indicates that **intermediate steps were successful**:
 
-*   SRTM DEM ダウンロード
-*   SNAP/jBLAS の内部処理
-*   一時ファイル削除
-*   エラーなしでプロンプトが返った
+*   SRTM DEM download
+*   SNAP/jBLAS internal processing
+*   Temporary file deletion
+*   Prompt returned without error
 
-という **途中ステップが成功した** という内容です。
+This means "ready to proceed to the next step," not "completed."
 
-これは “完了” ではなく “次のステップに進める状態” という意味のログです。
+🔥 **How to determine if the entire pipeline is complete:**
 
-🔥 **パイプライン全体が完了したかを判断する方法**
-
-InSAR Pipeline v2 の全処理が完了した場合は：
-
-`/opt/data/out/` 内に以下が出ているはずです：
+If all processing for InSAR Pipeline v2 is complete, you should find the following in `/opt/data/out/`:
 
 *   `coherence.tif`
 *   `interferogram.tif`
-*   `wrapped_phase.tif`
-*   `unwrapped_phase.tif`（ある場合）
+*   `wrapped_phase.tif` (if applicable)
+*   `unwrapped_phase.tif` (if applicable)
 *   `amplitude.tif`
-*   中間 VRT ファイル
-*   `report.html`（レポート生成スクリプトを使った場合）
+*   Intermediate VRT files
+*   `report.html` (if the report generation script was used)
 
-もし 上記が出ていなければ、まだ途中 です。
+If the above are not present, the process is still ongoing.
 
-📌 **今あなたのログは “どのステップ？”**
+📌 **What step is your current log at?**
 
-あなたが貼ったログは DEMダウンロード → SNAP 起動処理の一部 → 正常終了
-これは主に：
+The log you pasted covers DEM download → part of SNAP startup processing → normal termination. This mainly corresponds to:
 
-*   `download_data.py` か
-*   `run_gpt.py` の前半部分
+*   `download_data.py` or
+*   The initial part of `run_gpt.py`.
 
-に該当します。
-
-🧭 **次に確認したいこと（これで全体完了かすぐ判定できます）**
-👉 コマンドをコンテナ内で実行してください：
+🧭 **What to check next (to quickly determine overall completion):**
+👉 Execute the command inside the container:
 ```bash
 ls -R /opt/data/out
 ```
 
-すると：
+Then:
 
-*   沢山の GeoTIFF や VRT がある → 全体ほぼ完了
-*   空 or フォルダ自体がない → まだ全体は終わっていない
+*   Many GeoTIFFs and VRTs are present → Overall almost complete
+*   Empty or folder does not exist → Overall not yet complete
 
 ---
 
 ### Current Pipeline Status (Based on `insar_filtered.tif`):
 
-✅ **結論から言うと：**
+✅ **In conclusion:**
 
-まだ InSAR パイプラインは “完全には終了していません”。
+The InSAR pipeline is "not yet fully completed."
 
-現在出ているのは `insar_filtered.tif` 1つだけ なので、
-全工程のうち「後半の一部まで進んだ」状態 です。
+Since only `insar_filtered.tif` is currently present, it means that "part of the latter half of the process has progressed."
 
-📌 **本来、フル実行が成功したときに `/opt/data/out` に出るべき代表ファイル**
-
-あなたの InSAR Pipeline（Mini InSAR v2）なら通常は：
+📌 **Representative files that should be present in `/opt/data/out` when a full execution is successful for your InSAR Pipeline (Mini InSAR v2):**
 
 *   `coherence.tif`
 *   `interferogram.tif`
 *   `wrapped_phase.tif`
-*   `unwrapped_phase.tif`（ある場合）
+*   `unwrapped_phase.tif` (if applicable)
 *   `amplitude_master.tif`
 *   `amplitude_slave.tif`
 *   `diff_phase.tif`
-*   `insar_filtered.tif` ← 今これだけ出てる
-*   `report.html`（`generate_report.py` まで実行したら）
-*   中間の `.vrt` ファイル多数
+*   `insar_filtered.tif` ← Only this is present now
+*   `report.html` (if `generate_report.py` was executed)
+*   Many intermediate `.vrt` files
 
-などが揃います。
+Currently, only one of the final outputs is present.
 
-今あるのは 最終的な出力のほんの１つだけ。
+🔥 **What stage is the current process at?**
 
-🔥 **現状はどのステップまで進んでいるか？**
+`insar_filtered.tif` typically indicates that:
 
-`insar_filtered.tif` は通常、
+▶ Part of the post-processing after filtering and terrain correction has succeeded.
 
-▶ フィルタリング・地形補正以降の後処理の一部が成功した段階
+This means:
 
-つまり：
+*   Master/slave SLC reading
+*   Orbit correction
+*   Coregistration
+*   Interferogram generation
+*   Coherence generation
+*   Phase filtering
 
-*   マスター/スレーブ SLC 読込
-*   オルビット補正
-*   コアレジストレーション
-*   インターフェログラム生成
-*   コヒーレンス生成
-*   位相フィルタリング
+...and other intermediate steps are likely working.
 
-などの途中までは動いている可能性が高い。
+However, since:
 
-しかし：
+*   Coherence
+*   Interferogram (wrapped phase)
 
-*   コヒーレンス
-*   インターフェログラム（wrapped phase）
-
-などが出ていないため、まだ半分〜7割程度で止まっている。
-
-
-    This ensures that the installed PyTorch version is compatible with the container's environment.
+...are not present, it is still about 50-70% complete.
 
 ---
 
-# Troubleshooting Experience from a Contributor
+## My Troubleshooting Experience
 
 When I first ran this pipeline, I encountered various errors and found it very challenging. Therefore, I would like to share what I learned: this debugging journey is a very normal, everyday process.
 
 Tackling these problems is exactly what professional researchers and engineers do daily. The errors I faced were the kind of issues they resolve every day.
 
-*   Simple input mistakes in file paths that are easy to overlook.
-*   Syntax issues in the graph XML file that required updates to match the software version.
-*   Insufficient disk space that needed cleanup.
+*   Simple input mistakes in file paths that were easy for me to overlook.
+*   Syntax issues in the graph XML file that I needed to update to match the software version.
+*   Insufficient disk space that I had to clean up.
 
-With each error I resolved, I felt I was steadily moving forward. This trial-and-error process is not a sign of failure. Rather, it is an essential and valuable experience in the field of actual scientific and technical computing. So, if you encounter errors, it is a sign that you are on the right track.
+With each error I resolved, I felt I was steadily moving forward. This trial-and-error process is not a sign of failure. Rather, it is an essential and valuable experience in the field of actual scientific and technical computing. So, if I encounter errors, I know it is a sign that I am on the right track.
+
+## 15. Docker Build is Slow due to Large Context
+
+**Problem:** Docker builds take a very long time, especially the `COPY . /opt/project` step, even on a fast machine. Additionally, the `snappy-conf` step can take a very long time (e.g., over 2000 seconds).
+
+**Cause:** The Docker build process copies the entire build context (the directory where the `Dockerfile` is located) to the Docker daemon. If this directory contains many large files or unnecessary subdirectories (like `data/`, `.git/`, `venv/`), the `COPY` operation can be extremely slow, and the resulting image size will be unnecessarily large. The `snappy-conf` step, which configures the SNAP-Python interface, is also inherently time-consuming.
+
+**Resolution:** Create a `.dockerignore` file in the project's root directory (`/c/Portfolio/sentinel_insar/`). This file tells Docker which files and directories to exclude from the build context.
+
+**Example `.dockerignore` content:**
+```
+data/
+.git/
+.gemini/
+venv/
+.DS_Store
+**/*.pyc
+**/*.log
+**/*.tmp
+**/*~
+**/__pycache__/
+```
+
+**Benefits of using `.dockerignore`:**
+*   **Faster Builds:** Reduces the size of the build context, speeding up the transfer to the Docker daemon and the `COPY` operations.
+*   **Smaller Image Size:** Prevents unnecessary files from being included in the final Docker image.
+*   **Improved Performance:** Significantly reduces build time, especially when large data directories (like `data/SAFE/`) are excluded. While `snappy-conf` will still take time, optimizing the `COPY` step is crucial.
+
+After creating or updating `.dockerignore`, you must rebuild your Docker image for the changes to take effect:
+```bash
+docker compose build
+```

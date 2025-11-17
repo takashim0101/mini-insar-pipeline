@@ -1,0 +1,10 @@
+data/
+.git/
+.gemini/
+venv/
+.DS_Store
+**/*.pyc
+**/*.log
+**/*.tmp
+**/*~
+**/__pycache__/
