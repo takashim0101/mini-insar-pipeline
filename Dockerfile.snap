@@ -1,0 +1,38 @@
+# Use Ubuntu 18.04 for Snappy compatibility as per TROUBLESHOOTING.md
+FROM ubuntu:18.04
+
+# Set environment variables for SNAP
+ENV SNAP_HOME /opt/snap
+ENV SNAP_DATA /opt/snap/snap-data
+
+# Install necessary packages
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    wget \
+    unzip \
+    python3 \
+    python3-pip \
+    python3-dev \
+    build-essential \
+    openjdk-8-jdk \
+    libgdal-dev \
+    gdal-bin \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download and install ESA SNAP 9.0.0 (as per TROUBLESHOOTING.md)
+WORKDIR /tmp
+RUN wget https://download.esa.int/step/snap/9.0/installers/esa-snap_all_unix_9_0_0.sh -O esa-snap_all_unix_9_0_0.sh && \
+    chmod +x esa-snap_all_unix_9_0_0.sh && \
+    ./esa-snap_all_unix_9_0_0.sh -q -dir $SNAP_HOME && \
+    rm esa-snap_all_unix_9_0_0.sh
+
+# Configure Snappy (Python interface for SNAP)
+# Install numpy before snappy-conf
+RUN python3 -m pip install numpy
+# Run snappy-conf without --yes option, as it was unrecognized
+RUN ${SNAP_HOME}/bin/snappy-conf /usr/bin/python3 ${SNAP_HOME}/snap-python
+
+# Set PATH for SNAP executables
+ENV PATH="${SNAP_HOME}/bin:${PATH}"
+
+WORKDIR /opt/project

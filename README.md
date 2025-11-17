@@ -1,5 +1,13 @@
 # Mini InSAR Pipeline v2 – Professional Edition
 
+## Non-Technical Summary
+
+This project is a ready-to-use toolkit for processing satellite radar data to detect tiny movements of the Earth's surface, like those from earthquakes, volcanoes, or infrastructure changes. Think of it as a high-tech measuring tape that uses satellite images to see how the ground has shifted, down to the millimeter.
+
+While this pipeline is set up for a specific type of analysis called InSAR, its underlying design is a flexible and reusable "template." This means it can be easily adapted for other types of satellite data processing, making it a valuable starting point for a wide range of geospatial and Earth observation projects.
+
+---
+
 A fully reproducible, GPU‑accelerated InSAR processing pipeline built with Docker, SNAP, Python, and modern infrastructure practices. This project demonstrates how a single engineer can design, deploy, and operate a compact but production‑ready InSAR workflow—covering data acquisition, preprocessing, interferogram generation, and displacement visualization.
 
 The goal is to provide a **clean, minimal, operationally realistic reference pipeline** that can be integrated into GeoAI platforms, cloud/HPC environments, or national geospatial systems.
@@ -38,6 +46,19 @@ Supports GPU execution where possible, enabling:
 *   WSL2 memory configuration for stable SNAP processing
 *   [HPC Support Case Study (English)](./mini-insar-pipeline/HPC_SUPPORT_CASE_STUDY_EN.md)
 
+### Speeding Up Docker Builds with .dockerignore
+
+To reduce Docker image build times, a `.dockerignore` file has been created in the project's root directory. This file instructs Docker to exclude unnecessary files and directories (e.g., `data/`, `.git/`, `venv/`) from the build context.
+
+By excluding large folders like the `data/` directory, the execution time of the `COPY . /opt/project` step is significantly reduced, leading to faster overall builds.
+
+**Benefits:**
+*   Reduces the size of the build context, shortening the time it takes to send to the Docker daemon.
+*   Results in smaller image sizes by excluding unnecessary files.
+*   Dramatically improves build times, especially by preventing the copying of large amounts of satellite data from the `data/` directory.
+
+This optimization is particularly noticeable when using the `--no-cache` option or when building the image for the first time.
+
 ---
 
 # 🎯 Project Status & Next Steps
@@ -49,6 +70,7 @@ This section organizes the current project progress and the next steps to take.
 *   **GPU Test Successful**: GPU testing using `gpu_test.py` was successful, confirming GPU access within the Docker container.
 *   **GPT Graph Production Processing Successful**: Master / Slave / Target Product are working correctly, and interferogram generation and Goldstein filtering have been completed.
 *   **Docker + SNAP + GPU + ASF Data Integration Successful**: This was the biggest challenge, but the Docker environment, ESA SNAP, GPU passthrough, and ASF data integration are all functioning normally.
+*   **Docker Images Built Successfully**: All Docker images (`sentinel_insar-pipeline:latest`) have been successfully built. The `.dockerignore` file is now in place to optimize future build times, especially for the `COPY` operations.
 
 **🔥 In short, we are at the point where approximately 50% of the InSAR pipeline is complete.**
 This is the stage where interferogram and Goldstein filtering have finished.
@@ -115,26 +137,50 @@ Used only for optional helper tools.
 
 ---
 
+# ⚙️ Local Development Setup (Optional)
+
+If you want to run the Python scripts locally without using Docker, you can set up a virtual environment and install the required dependencies.
+
+1.  **Create a virtual environment:**
+    ```bash
+    python -m venv venv
+    ```
+
+2.  **Activate the virtual environment:**
+    *   **On Windows (PowerShell):**
+        ```powershell
+        .\venv\Scripts\Activate.ps1
+        ```
+    *   **On macOS/Linux:**
+        ```bash
+        source venv/bin/activate
+        ```
+
+3.  **Install the dependencies:**
+    ```bash
+    pip install -r requirements.pipeline.txt
+    ```
+
+---
+
 # ⚙️ 1. Prepare Earthdata Login (Required)
 
 The pipeline uses **ASF Search API**, which requires NASA Earthdata credentials.
 
-Set environment variables before running Docker:
-
-### **PowerShell (Windows)**
-
-```powershell
-$env:EARTHDATA_USERNAME="your_earthdata_username"
-$env:EARTHDATA_PASSWORD="your_earthdata_password"
-```
-
-### **Bash (Linux/WSL)**
+To provide your credentials securely, first copy the example environment file:
 
 ```bash
-export EARTHDATA_USERNAME=your_earthdata_username
-export EARTHDATA_PASSWORD=your_earthdata_password
+cp env.example .env
 ```
-*Replace `your_earthdata_username` and `your_earthdata_password` with your actual credentials.*
+
+Then, open the newly created `.env` file and replace the placeholder values with your actual credentials:
+
+```
+EARTHDATA_USERNAME="your_earthdata_username"
+EARTHDATA_PASSWORD="your_earthdata_password"
+```
+
+Docker Compose will automatically pick up these environment variables when you run `docker compose up` or `docker compose build`.
 
 ---
 
@@ -220,51 +266,47 @@ If this works, GPU passthrough is ready.
 
 ## 6. Example Pipeline Execution
 
+> **Note:** The following commands are intended to be run inside the Docker containers, which is the **highly recommended** approach for this project. The Docker environment is pre-configured with all the necessary dependencies, which avoids the complex setup of libraries like GDAL on your local machine.
+>
+> If you haven't already, start the Docker containers with:
+> ```bash
+> docker-compose up -d
+> ```
+
 ### Step 1 — Download Sentinel‑1 SLC (Optional)
 
 If you already have the Sentinel-1 `.SAFE` data in `./data/SAFE/`, you can skip this step.
 
+To run the download script inside the `pipeline` container:
 ```bash
-python /opt/scripts/download_data.py \
-  --start 2021-05-11 \
-  --end   2021-05-11 \
-  --aoi   /opt/data/aoi.geojson
+docker-compose exec pipeline python /opt/project/scripts/download_data.py /opt/project/aoi.geojson 20210511 20210530
 ```
 
 ### Step 2 — Run SNAP InSAR Graph
 
-Execute the InSAR processing graph using ESA SNAP's Graph Processing Tool (GPT). This step performs co-registration, interferogram formation, topographic phase removal, and filtering.
-
-**To measure execution time, you can prefix the command with `time`:**
+Execute the InSAR processing graph using the `run_gpt.py` script inside the `snap` container. This script automates the execution of ESA SNAP's Graph Processing Tool (GPT).
 
 ```bash
-time gpt /opt/graphs/insar_graph.xml \
-  -Pmaster=/opt/data/SAFE/S1A_IW_SLC__1SDV_20210511T173941_20210511T174008_037843_047769_9526.SAFE \
-  -Pslave=/opt/data/SAFE/S1A_IW_SLC__1SDV_20210530T173150_20210530T173217_038120_047FBA_A0C2.SAFE \
-  -Ptarget_product=/opt/data/out/insar_filtered.dim
+docker-compose exec snap python /opt/project/scripts/run_gpt.py /opt/project/graphs/insar_graph.xml \
+  --in1 /opt/data/SAFE/S1A_IW_SLC__1SDV_20210511T173941_20210511T174008_037843_047769_9526.SAFE \
+  --in2 /opt/data/SAFE/S1A_IW_SLC__1SDV_20210530T173150_20210530T173217_038120_047FBA_A0C2.SAFE \
+  --out /opt/data/out
 ```
 
-**Important:** Replace the placeholder `.SAFE` paths with the actual paths to your master and slave Sentinel-1 data within the container (e.g., `/opt/data/SAFE/YOUR_MASTER_IMAGE.SAFE`).
-
-```bash
-gpt /opt/graphs/insar_graph.xml \
-  -Pmaster=/opt/data/SAFE/S1A_IW_SLC__1SDV_20210511T173941_20210511T174008_037843_047769_9526.SAFE \
-  -Pslave=/opt/data/SAFE/S1A_IW_SLC__1SDV_20210530T173150_20210530T173217_038120_047FBA_A0C2.SAFE \
-  -Ptarget_product=/opt/data/out/insar_filtered.dim
-```
-
-This command will take some time to complete, depending on your system resources and the size of the data.
+**Important:** The script now automatically logs the execution time.
 
 ### Step 3 — Convert VRT → GeoTIFF
 
+To convert the output to GeoTIFF, run the `convert_vrt_to_tif.py` script inside the `pipeline` container:
 ```bash
-python /opt/scripts/convert_vrt_to_tif.py /opt/data/out
+docker-compose exec pipeline python /opt/project/scripts/convert_vrt_to_tif.py /opt/data/out
 ```
 
 ### Step 4 — Generate Report
 
+To generate a report with a visualization of the output, run the `generate_report.py` script inside the `pipeline` container:
 ```bash
-python /opt/scripts/generate_report.py /opt/data/out
+docker-compose exec pipeline python /opt/project/scripts/generate_report.py /opt/data/out
 ```
 
 ---
@@ -310,7 +352,7 @@ mini-insar-pipeline/
 │     convert_vrt_to_tif.py
 │     generate_report.py
 │     gpu_test.py
-│     gpu_test.py
+│     utils.py
 │
 ├── graphs/
 │     insar_graph.xml
@@ -326,9 +368,14 @@ mini-insar-pipeline/
 
 After running the pipeline, you should find the following in the `mini-insar-pipeline/data/out/` directory:
 
-*   `insar_filtered.tif`: The filtered interferogram (phase-filtered).
+*   `insar_filtered.tif`: The filtered interferogram (phase-filtered). This file indicates that the core InSAR processing (co-registration, interferogram formation, topographic phase removal, and filtering) has completed successfully.
+*   `insar_filtered.tif.aux.xml`: An auxiliary XML file containing additional metadata for the `insar_filtered.tif`.
 *   `insar_filtered.tif.png`: A visualization of the interferogram.
 *   `insar_report.txt`: A short textual report with output paths.
+
+You can view the generated interferogram directly here:
+
+[![Filtered Interferogram](docs/insar_filtered.png)](docs/insar_filtered.png)
 
 ### Sanity Checks
 *   The interferogram should show coherent fringes over non-vegetated areas (coastal/urban).

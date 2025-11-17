@@ -1,0 +1,90 @@
+# services:
+#   insar:
+#     build: .
+#     container_name: mini_insar
+#     volumes:
+#       - ./data:/opt/data
+#       - ./graphs:/opt/graphs
+#       - ./scripts:/opt/scripts
+#     environment:
+#       - EARTHDATA_USERNAME=${EARTHDATA_USERNAME}
+#       - EARTHDATA_PASSWORD=${EARTHDATA_PASSWORD}
+#     tty: true
+#     gpus: all
+#     ports:
+#       - "11434:11434"
+
+# version: "3.8"
+# services:
+#   pipeline:
+#     image: python:3.10-slim
+#     container_name: mini_insar_pipeline
+#     runtime: nvidia
+#     deploy:
+#       resources:
+#         reservations:
+#           devices:
+#             - capabilities: [gpu]
+#     volumes:
+#       - ./data:/opt/data
+#       - ./scripts:/opt/project/scripts
+#       - ./graphs:/opt/project/graphs
+#     working_dir: /opt/project
+#     command: ["bash", "-lc", "pip install -r requirements.txt && python3 scripts/run_pipeline.py"]
+#     environment:
+#       - EARTHDATA_USERNAME=${EARTHDATA_USERNAME}
+#       - EARTHDATA_PASSWORD=${EARTHDATA_PASSWORD}
+#     shm_size: '2g'
+#     tty: true
+# 
+#   ollama:
+#     image: ollama/ollama:latest
+#     container_name: ollama
+#     ports:
+#       - "11434:11434"
+#     volumes:
+#       - ./ollama_data:/root/.ollama
+#     restart: unless-stopped
+
+services:
+  snap:
+    build:
+      context: .
+      dockerfile: Dockerfile.snap
+    container_name: mini_insar_snap
+    volumes:
+      - ./data:/opt/data
+      - ./mini-insar-pipeline/graphs:/opt/project/graphs
+      - ./mini-insar-pipeline/scripts:/opt/project/scripts
+    tty: true
+
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile.pipeline
+    container_name: mini_insar_pipeline
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: ["gpu"]
+
+    depends_on:
+      - snap
+
+    environment:
+      - EARTHDATA_USERNAME=${EARTHDATA_USERNAME}
+      - EARTHDATA_PASSWORD=${EARTHDATA_PASSWORD}
+      - GDAL_DATA=/usr/share/gdal
+
+    volumes:
+      - ./data:/opt/data
+      - ./mini-insar-pipeline/scripts:/opt/project/scripts
+      - ./mini-insar-pipeline/graphs:/opt/project/graphs
+      - ./outputs:/opt/data/out
+
+    working_dir: /opt/project
+    tty: true

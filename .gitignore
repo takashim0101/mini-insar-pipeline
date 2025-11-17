@@ -24,3 +24,19 @@ venv/
 
 # Logs
 *.log
+
+# Gemini Agent files
+.gemini/
+
+# Data output
+data/out/
+data/SAFE/
+data/stac_results.json
+
+# Reports and images
+*.pdf
+*.png
+*.html
+*.kml
+*.tiff
+*.xml

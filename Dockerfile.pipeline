@@ -1,0 +1,29 @@
+FROM nvidia/cuda:11.8.0-runtime-ubuntu20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# System dependencies
+RUN apt-get update && apt-get install -y \
+    python3 python3-pip python3-dev \
+    build-essential \
+    gdal-bin libgdal-dev \
+    wget git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Ensure pip is up to date
+RUN python3 -m pip install --upgrade pip setuptools wheel
+
+WORKDIR /opt/project
+
+# Install Python dependencies first (cache-friendly)
+COPY requirements.pipeline.txt /tmp/requirements.txt
+# Explicitly install torch with extra index URL
+RUN pip install torch==2.1.0+cu118 --extra-index-url https://download.pytorch.org/whl/cu118 --no-cache-dir
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Copy project files
+COPY . /opt/project
+
+CMD ["/bin/bash"]
+
+
