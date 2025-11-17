@@ -264,7 +264,7 @@ If this works, GPU passthrough is ready.
 
 ---
 
-## 6. Example Pipeline Execution
+## 5. Example Pipeline Execution
 
 > **Note:** The following commands are intended to be run inside the Docker containers, which is the **highly recommended** approach for this project. The Docker environment is pre-configured with all the necessary dependencies, which avoids the complex setup of libraries like GDAL on your local machine.
 >
@@ -315,7 +315,7 @@ docker-compose exec pipeline python /opt/project/scripts/generate_report.py /opt
 
 ---
 
-## 5.2 What is SNAP Graph Execution? (InSAR Processing for Beginners)
+## 6. What is SNAP Graph Execution? (InSAR Processing for Beginners)
 
 The `insar_graph.xml` file used here defines a sequence of automated processing steps for Sentinel-1 radar data, executed by ESA SNAP's Graph Processing Tool (GPT). This process transforms raw satellite data into an interferogram, which can reveal millimeter-scale ground movements.
 
@@ -342,24 +342,21 @@ While this Docker environment is fully GPU-enabled, SNAP's core InSAR processing
 
 ```
 mini-insar-pipeline/
-│   docker-compose.yml
-│   Dockerfile
-│   README.md
-│
-├── scripts/
-│     download_data.py
-│     run_snap_graph.py
-│     convert_vrt_to_tif.py
-│     generate_report.py
-│     gpu_test.py
-│     utils.py
-│
+├── .gitignore
+├── aoi.geojson
+├── docker-compose.yml
+├── Dockerfile
+├── HPC_SUPPORT_CASE_STUDY_EN.md
+├── requirements.txt
+├── TROUBLESHOOTING.md
 ├── graphs/
-│     insar_graph.xml
-│
-└── data/
-      SAFE/
-      out/
+│   └── (insar_graph.xml is expected here, but the directory is empty)
+├── notebooks/
+└── scripts/
+    ├── convert_vrt_to_tif.py
+    ├── download_data.py
+    ├── generate_report.py
+    └── run_gpt.py
 ```
 
 ---
@@ -435,27 +432,7 @@ The Sentinel-1 data downloaded via this pipeline is sourced from the Alaska Sate
 
 **It is crucial for users to consult the End User License Agreements (EULAs) associated with each specific data collection to determine the exact commercial use policy and any other restrictions.**
 
----
 
-
-
-
-
----
-
-# 📄 Licensing
-
-## Code Licensing
-
-This pipeline's code is provided as-is. If you intend to publish or distribute this code, it is highly recommended to choose and include an appropriate open-source license (e.g., MIT, Apache 2.0) in your repository. This clarifies how others can use, modify, and distribute your code.
-
-## Data Licensing
-
-The Sentinel-1 data downloaded via this pipeline is sourced from the Alaska Satellite Facility (ASF). While ASF data is generally publicly funded and available, specific usage policies, especially concerning commercial applications, can vary by dataset.
-
-**It is crucial for users to consult the End User License Agreements (EULAs) associated with each specific data collection to determine the exact commercial use policy and any other restrictions.**
-
----
 
 # 📄 Future Extensions
 
