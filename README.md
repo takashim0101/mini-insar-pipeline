@@ -308,11 +308,6 @@ To generate a report with a visualization of the output, run the `generate_repor
 ```bash
 docker-compose exec pipeline python /opt/project/scripts/generate_report.py /opt/data/out
 ```
-
----
-
-
-
 ---
 
 ## 6. What is SNAP Graph Execution? (InSAR Processing for Beginners)
