@@ -1,5 +1,4 @@
-# Mini InSAR Pipeline v2 – Professional Edition
-
+# Mini InSAR Pipeline 
 ## Non-Technical Summary
 
 This project is a ready-to-use toolkit for processing satellite radar data to detect tiny movements of the Earth's surface, like those from earthquakes, volcanoes, or infrastructure changes. Think of it as a high-tech measuring tape that uses satellite images to see how the ground has shifted, down to the millimeter.
